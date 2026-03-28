@@ -325,7 +325,7 @@ const TENANT_ID   = '6cfd6e7d-2a19-4221-9694-84d6e95ede87';
 const CLIENT_ID   = 'd0527b95-ba57-4040-b55a-f9166d9ad82f';
 const DV_BASE     = 'https://mjmotor.crm5.dynamics.com';
 const DV_API      = DV_BASE + '/api/data/v9.2/';
-const ENTITY      = 'cre39_opportunities';
+const ENTITY      = 'cre39_sf_opportunities';
 const REDIRECT_URI = location.origin + location.pathname;
 
 const msalConfig = {
@@ -467,14 +467,14 @@ async function loadData() {
       setValue('kpi-total', (d.value?.[0]?.cnt ?? '—'), 'blue');
     }).catch(() => setValue('kpi-total', '—', 'blue'));
 
-    // ② 本月成交（iswon=true，依「開立發票日」= cre39_dmsdeliverydatec）
-    const wonQ = `${ENTITY}?$apply=filter(cre39_iswon eq true and cre39_dmsdeliverydatec ge ${start} and cre39_dmsdeliverydatec lt ${end})/aggregate($count as cnt)`;
+    // ② 本月成交（iswon=true，依「開立發票日」= cre39_dmsdeliverydate__c）
+    const wonQ = `${ENTITY}?$apply=filter(cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end})/aggregate($count as cnt)`;
     dvFetch(wonQ).then(d => {
       setValue('kpi-won', (d.value?.[0]?.cnt ?? '—'), 'green');
     }).catch(() => setValue('kpi-won', '—', 'green'));
 
-    // ③ 本月訂單（依「訂購日期」= cre39_orderdatec，不限 stage）
-    const orderedQ = `${ENTITY}?$apply=filter(cre39_orderdatec ge ${start} and cre39_orderdatec lt ${end})/aggregate($count as cnt)`;
+    // ③ 本月訂單（依「訂購日期」= cre39_orderdate__c，不限 stage）
+    const orderedQ = `${ENTITY}?$apply=filter(cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end})/aggregate($count as cnt)`;
     dvFetch(orderedQ).then(d => {
       setValue('kpi-ordered', (d.value?.[0]?.cnt ?? '—'), 'orange');
     }).catch(() => setValue('kpi-ordered', '—', 'orange'));
@@ -502,7 +502,7 @@ async function loadData() {
     });
 
     // ⑦ 業務員本月成交（先載 SF User 對照表，再查成交記錄）
-    const salesSelectQ = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydatec ge ${start} and cre39_dmsdeliverydatec lt ${end}&$select=cre39_ownerid,cre39_iswon,cre39_isclosed,cre39_stagename&$top=500`;
+    const salesSelectQ = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}&$select=cre39_ownerid,cre39_iswon,cre39_isclosed,cre39_stagename&$top=500`;
     const userMapQ = `cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`;
     Promise.all([dvFetch(salesSelectQ), dvFetch(userMapQ).catch(() => ({ value: [] }))])
       .then(([salesData, userData]) => {
