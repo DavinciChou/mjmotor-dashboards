@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>銘勁汽車 · 營業數據面板</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d2e;
+      --surface2: #242740;
+      --accent: #4f8ef7;
+      --accent2: #7c5cfc;
+      --green: #22c55e;
+      --orange: #f97316;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #2d3252;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: #fff;
+    }
+    .logo-text { font-size: 18px; font-weight: 600; }
+    .logo-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    #userInfo { font-size: 14px; color: var(--muted); }
+    #refreshTime { font-size: 12px; color: var(--muted); }
+
+    /* ── Auth state ── */
+    #authPanel {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 80vh; gap: 16px;
+    }
+    #authPanel h2 { font-size: 22px; }
+    #authPanel p { color: var(--muted); font-size: 14px; }
+    #loginBtn {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 8px;
+      padding: 12px 32px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    #loginBtn:hover { opacity: 0.85; }
+
+    /* ── Main ── */
+    #dashboard { display: none; padding: 24px 28px; }
+
+    .section-title {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin: 24px 0 12px;
+    }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .kpi-card.blue::before  { background: var(--accent); }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.orange::before{ background: var(--orange); }
+    .kpi-card.purple::before{ background: var(--accent2); }
+    .kpi-card.red::before   { background: var(--red); }
+
+    .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 32px; font-weight: 700; line-height: 1; }
+    .kpi-value.blue   { color: var(--accent); }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.orange { color: var(--orange); }
+    .kpi-value.purple { color: var(--accent2); }
+    .kpi-value.red    { color: var(--red); }
+    .kpi-unit { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--surface2);
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 12px 16px; font-size: 14px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 99px;
+      font-size: 12px; font-weight: 500;
+    }
+    .badge-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .badge-green  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .badge-orange { background: rgba(249,115,22,.15); color: var(--orange); }
+    .badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .badge-gray   { background: rgba(148,163,184,.1); color: var(--muted); }
+
+    /* ── Funnel ── */
+    .funnel-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .funnel-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .funnel-label { width: 100px; font-size: 13px; color: var(--muted); flex-shrink: 0; text-align: right; }
+    .funnel-bar-bg {
+      flex: 1; background: var(--surface2);
+      border-radius: 4px; height: 28px; overflow: hidden;
+    }
+    .funnel-bar {
+      height: 100%; border-radius: 4px;
+      display: flex; align-items: center; padding-left: 10px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      transition: width 0.8s ease;
+    }
+    .funnel-count { width: 60px; text-align: right; font-size: 13px; color: var(--text); }
+
+    /* ── Loading / Error ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      height: 32px; width: 80px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    .error-msg {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* ── Month selector ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 4px;
+    }
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.refresh-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button.refresh-btn:hover { background: var(--border); }
+
+    #logoutBtn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">銘</div>
+    <div>
+      <div class="logo-text">銘勁汽車</div>
+      <div class="logo-sub">營業數據面板</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="userInfo">未登入</span>
+    <span id="refreshTime"></span>
+    <button id="logoutBtn" style="display:none" onclick="logout()">登出</button>
+  </div>
+</header>
+
+<!-- 未登入 -->
+<div id="authPanel">
+  <div class="logo-icon" style="width:56px;height:56px;font-size:26px;margin-bottom:8px">銘</div>
+  <h2>銘勁汽車 · 營業數據面板</h2>
+  <p>請使用銘勁公司帳號登入以查看數據</p>
+  <button id="loginBtn" onclick="login()">🔐 使用 Microsoft 帳號登入</button>
+  <div id="authError" class="error-msg" style="display:none"></div>
+</div>
+
+<!-- 主畫面 -->
+<div id="dashboard">
+  <div class="toolbar">
+    <label style="font-size:13px;color:var(--muted)">月份：</label>
+    <select id="monthSelect" onchange="loadData()"></select>
+    <button class="refresh-btn" onclick="loadData()">⟳ 重新整理</button>
+  </div>
+
+  <div class="section-title">關鍵指標</div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">有望客戶總數</div>
+      <div class="kpi-value blue" id="kpi-total"><div class="skeleton"></div></div>
+      <div class="kpi-unit">筆</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">本月成交</div>
+      <div class="kpi-value green" id="kpi-won"><div class="skeleton"></div></div>
+      <div class="kpi-unit">台</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">本月訂單</div>
+      <div class="kpi-value orange" id="kpi-ordered"><div class="skeleton"></div></div>
+      <div class="kpi-unit">張</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">進行中商機</div>
+      <div class="kpi-value purple" id="kpi-open"><div class="skeleton"></div></div>
+      <div class="kpi-unit">筆</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">本月流失</div>
+      <div class="kpi-value red" id="kpi-lost"><div class="skeleton"></div></div>
+      <div class="kpi-unit">筆</div>
+    </div>
+  </div>
+
+  <div class="section-title">漏斗分析（進行中商機）</div>
+  <div class="funnel-wrap" id="funnelArea">
+    <div class="skeleton" style="height:20px;width:100%;margin-bottom:12px"></div>
+    <div class="skeleton" style="height:20px;width:80%;margin-bottom:12px"></div>
+    <div class="skeleton" style="height:20px;width:60%;margin-bottom:12px"></div>
+    <div class="skeleton" style="height:20px;width:40%"></div>
+  </div>
+
+  <div class="section-title">業務員本月成績</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>業務員</th>
+          <th>訂單數</th>
+          <th>成交數</th>
+          <th>進行中</th>
+          <th>流失</th>
+        </tr>
+      </thead>
+      <tbody id="salesTable">
+        <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">載入中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="globalError" class="error-msg" style="display:none;margin-top:16px"></div>
+</div>
+
+<script>
+// ──────────────────────────────────────────
+// 設定
+// ──────────────────────────────────────────
+const TENANT_ID   = '6cfd6e7d-2a19-4221-9694-84d6e95ede87';
+const CLIENT_ID   = 'd0527b95-ba57-4040-b55a-f9166d9ad82f';
+const DV_BASE     = 'https://mjmotor.crm5.dynamics.com';
+const DV_API      = DV_BASE + '/api/data/v9.2/';
+const ENTITY      = 'cre39_opportunities';
+const REDIRECT_URI = location.origin + location.pathname;
+
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: 'https://login.microsoftonline.com/' + TENANT_ID,
+    redirectUri: REDIRECT_URI,
+  },
+  cache: { cacheLocation: 'sessionStorage' }
+};
+
+const loginRequest = {
+  scopes: [DV_BASE + '/user_impersonation', 'User.Read']
+};
+
+let msalInstance, account, accessToken;
+
+// ──────────────────────────────────────────
+// MSAL 初始化
+// ──────────────────────────────────────────
+async function initMsal() {
+  msalInstance = new msal.PublicClientApplication(msalConfig);
+  const response = await msalInstance.handleRedirectPromise();
+  if (response) {
+    account = response.account;
+    accessToken = response.accessToken;
+    showDashboard();
+    return;
+  }
+
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    account = accounts[0];
+    try {
+      const r = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+      accessToken = r.accessToken;
+      showDashboard();
+    } catch {
+      // 需要互動式登入
+    }
+  }
+}
+
+async function login() {
+  try {
+    document.getElementById('loginBtn').textContent = '登入中…';
+    document.getElementById('authError').style.display = 'none';
+    await msalInstance.loginRedirect(loginRequest);
+  } catch (e) {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = '登入失敗：' + e.message;
+    document.getElementById('loginBtn').textContent = '🔐 使用 Microsoft 帳號登入';
+  }
+}
+
+async function logout() {
+  await msalInstance.logoutRedirect({ account });
+}
+
+async function getToken() {
+  try {
+    const r = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+    return r.accessToken;
+  } catch {
+    const r = await msalInstance.acquireTokenPopup({ ...loginRequest, account });
+    return r.accessToken;
+  }
+}
+
+// ──────────────────────────────────────────
+// UI helpers
+// ──────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('authPanel').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'block';
+  document.getElementById('userInfo').textContent =
+    (account.name || account.username || '').split('@')[0];
+  buildMonthSelect();
+  loadData();
+}
+
+function buildMonthSelect() {
+  const sel = document.getElementById('monthSelect');
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月';
+    sel.appendChild(opt);
+  }
+}
+
+function monthRange() {
+  const [y, m] = document.getElementById('monthSelect').value.split('-').map(Number);
+  const start = new Date(y, m - 1, 1).toISOString();
+  const end   = new Date(y, m, 1).toISOString();
+  return { start, end, y, m };
+}
+
+// ──────────────────────────────────────────
+// Dataverse fetch
+// ──────────────────────────────────────────
+async function dvFetch(query) {
+  const token = await getToken();
+  const res = await fetch(DV_API + query, {
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'OData-MaxVersion': '4.0',
+      'OData-Version': '4.0',
+      'Accept': 'application/json',
+      'Prefer': 'odata.include-annotations=*'
+    }
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + await res.text());
+  return res.json();
+}
+
+// ──────────────────────────────────────────
+// 載入資料
+// ──────────────────────────────────────────
+async function loadData() {
+  const err = document.getElementById('globalError');
+  err.style.display = 'none';
+
+  // 重置 skeleton
+  ['kpi-total','kpi-won','kpi-ordered','kpi-open','kpi-lost'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="skeleton"></div>';
+  });
+
+  try {
+    const { start, end } = monthRange();
+
+    // ① 有望客戶總數
+    const totalQ = `${ENTITY}?$apply=aggregate($count as cnt)`;
+    dvFetch(totalQ).then(d => {
+      setValue('kpi-total', (d.value?.[0]?.cnt ?? '—'), 'blue');
+    }).catch(() => setValue('kpi-total', '—', 'blue'));
+
+    // ② 本月成交（iswon=true，依「開立發票日」= cre39_dmsdeliverydatec）
+    const wonQ = `${ENTITY}?$apply=filter(cre39_iswon eq true and cre39_dmsdeliverydatec ge ${start} and cre39_dmsdeliverydatec lt ${end})/aggregate($count as cnt)`;
+    dvFetch(wonQ).then(d => {
+      setValue('kpi-won', (d.value?.[0]?.cnt ?? '—'), 'green');
+    }).catch(() => setValue('kpi-won', '—', 'green'));
+
+    // ③ 本月訂單（依「訂購日期」= cre39_orderdatec，不限 stage）
+    const orderedQ = `${ENTITY}?$apply=filter(cre39_orderdatec ge ${start} and cre39_orderdatec lt ${end})/aggregate($count as cnt)`;
+    dvFetch(orderedQ).then(d => {
+      setValue('kpi-ordered', (d.value?.[0]?.cnt ?? '—'), 'orange');
+    }).catch(() => setValue('kpi-ordered', '—', 'orange'));
+
+    // ④ 進行中商機（isclosed = false）
+    const openQ = `${ENTITY}?$apply=filter(cre39_isclosed eq false)/aggregate($count as cnt)`;
+    dvFetch(openQ).then(d => {
+      setValue('kpi-open', (d.value?.[0]?.cnt ?? '—'), 'purple');
+    }).catch(() => setValue('kpi-open', '—', 'purple'));
+
+    // ⑤ 本月流失（isclosed=true, iswon=false，依 closedate）
+    const lostQ = `${ENTITY}?$apply=filter(cre39_isclosed eq true and cre39_iswon eq false and cre39_closedate ge ${start} and cre39_closedate lt ${end})/aggregate($count as cnt)`;
+    dvFetch(lostQ).then(d => {
+      setValue('kpi-lost', (d.value?.[0]?.cnt ?? '—'), 'red');
+    }).catch(() => setValue('kpi-lost', '—', 'red'));
+
+    // ⑥ 漏斗（各 Stage 分別計數，Dataverse 不支援 text 欄位 server-side groupby）
+    const FUNNEL_STAGES = ['來店', '試乘', '預約', '簽訂', '領牌'];
+    Promise.all(FUNNEL_STAGES.map(stage =>
+      dvFetch(`${ENTITY}?$apply=filter(cre39_stagename eq '${stage}')/aggregate($count as cnt)`)
+        .then(d => ({ cre39_stagename: stage, cnt: d.value?.[0]?.cnt || 0 }))
+        .catch(() => ({ cre39_stagename: stage, cnt: 0 }))
+    )).then(rows => renderFunnel(rows.filter(r => r.cnt > 0))).catch(() => {
+      document.getElementById('funnelArea').innerHTML = '<div style="color:var(--muted);font-size:13px">漏斗資料載入失敗</div>';
+    });
+
+    // ⑦ 業務員本月成交（先載 SF User 對照表，再查成交記錄）
+    const salesSelectQ = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydatec ge ${start} and cre39_dmsdeliverydatec lt ${end}&$select=cre39_ownerid,cre39_iswon,cre39_isclosed,cre39_stagename&$top=500`;
+    const userMapQ = `cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`;
+    Promise.all([dvFetch(salesSelectQ), dvFetch(userMapQ).catch(() => ({ value: [] }))])
+      .then(([salesData, userData]) => {
+        const userMap = {};
+        (userData.value || []).forEach(u => {
+          if (u.cre39_externalprimarykey && u.cre39_name) {
+            userMap[u.cre39_externalprimarykey] = u.cre39_name;
+          }
+        });
+        renderSalesTable(salesData.value || [], userMap);
+      }).catch(() => {
+        document.getElementById('salesTable').innerHTML =
+          '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">業務員資料需確認欄位名稱</td></tr>';
+      });
+
+    document.getElementById('refreshTime').textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+
+  } catch (e) {
+    err.style.display = 'block';
+    err.textContent = '資料載入失敗：' + e.message;
+    console.error(e);
+  }
+}
+
+function setValue(id, val, cls) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  el.textContent = typeof val === 'number' ? val.toLocaleString() : val;
+  el.className = 'kpi-value ' + cls;
+}
+
+function renderFunnel(rows) {
+  const area = document.getElementById('funnelArea');
+  if (!rows.length) {
+    area.innerHTML = '<div style="color:var(--muted);font-size:13px">目前無進行中商機</div>';
+    return;
+  }
+  const max = Math.max(...rows.map(r => r.cnt));
+  const colors = ['#4f8ef7','#7c5cfc','#f97316','#22c55e','#ef4444','#94a3b8'];
+  area.innerHTML = rows.slice(0, 8).map((r, i) => {
+    const pct = max ? Math.round((r.cnt / max) * 100) : 0;
+    return `
+      <div class="funnel-row">
+        <div class="funnel-label">${r.cre39_stagename || '未知'}</div>
+        <div class="funnel-bar-bg">
+          <div class="funnel-bar" style="width:${pct}%;background:${colors[i % colors.length]}">
+            ${pct > 15 ? r.cnt : ''}
+          </div>
+        </div>
+        <div class="funnel-count">${r.cnt.toLocaleString()}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSalesTable(rows, userMap) {
+  userMap = userMap || {};
+  // 按業務員 client-side groupby（rows 為個別記錄，非聚合）
+  const byOwner = {};
+  rows.forEach(r => {
+    const sfId = r.cre39_ownerid || '未知';
+    if (!byOwner[sfId]) byOwner[sfId] = { won: 0, lost: 0, open: 0, ordered: 0, displayName: userMap[sfId] || sfId };
+    // 因查詢已過濾 iswon=true，每筆都是成交記錄
+    byOwner[sfId].won += 1;
+  });
+  const tbody = document.getElementById('salesTable');
+  const entries = Object.entries(byOwner).sort((a, b) => b[1].won - a[1].won);
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">本月無資料</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(([sfId, d]) => `
+    <tr>
+      <td>${d.displayName}</td>
+      <td>${d.ordered || d.won}</td>
+      <td><span class="badge badge-green">${d.won}</span></td>
+      <td><span class="badge badge-blue">${d.open}</span></td>
+      <td><span class="badge badge-red">${d.lost}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderStageSummary(rows) {
+  // fallback：只顯示 stage summary
+  const tbody = document.getElementById('salesTable');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td colspan="2">${r.cre39_stagename || '未知'}</td>
+      <td colspan="3"><span class="badge badge-blue">${r.cnt}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">本月無資料</td></tr>';
+}
+
+// ──────────────────────────────────────────
+// 啟動：動態載入 MSAL 避免瀏覽器快取問題
+// ──────────────────────────────────────────
+(function () {
+  const MSAL_CDN = 'https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js';
+  const s = document.createElement('script');
+  s.src = MSAL_CDN;
+  s.onload = function () {
+    initMsal().catch(function (e) {
+      console.error('MSAL init error:', e);
+      document.getElementById('authError').style.display = 'block';
+      document.getElementById('authError').textContent = 'MSAL 初始化失敗：' + e.message;
+    });
+  };
+  s.onerror = function () {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = 'MSAL 載入失敗，請重新整理頁面';
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
