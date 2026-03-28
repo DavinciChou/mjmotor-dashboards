@@ -501,18 +501,19 @@ async function loadData() {
       document.getElementById('funnelArea').innerHTML = '<div style="color:var(--muted);font-size:13px">漏斗資料載入失敗</div>';
     });
 
-    // ⑦ 業務員本月成交（先載 SF User 對照表，再查成交記錄）
-    const salesSelectQ = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}&$select=cre39_ownerid,cre39_iswon,cre39_isclosed,cre39_stagename&$top=500`;
+    // ⑦ 業務員本月成績（訂單 by orderdate__c，成交 by dmsdeliverydate__c + iswon）
+    const orderQ   = `${ENTITY}?$filter=cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}&$select=cre39_ownerid&$top=500`;
+    const wonQ2    = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}&$select=cre39_ownerid&$top=500`;
     const userMapQ = `cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`;
-    Promise.all([dvFetch(salesSelectQ), dvFetch(userMapQ).catch(() => ({ value: [] }))])
-      .then(([salesData, userData]) => {
+    Promise.all([dvFetch(orderQ), dvFetch(wonQ2), dvFetch(userMapQ).catch(() => ({ value: [] }))])
+      .then(([orderData, wonData, userData]) => {
         const userMap = {};
         (userData.value || []).forEach(u => {
           if (u.cre39_externalprimarykey && u.cre39_name) {
             userMap[u.cre39_externalprimarykey] = u.cre39_name;
           }
         });
-        renderSalesTable(salesData.value || [], userMap);
+        renderSalesTable(orderData.value || [], wonData.value || [], userMap);
       }).catch(() => {
         document.getElementById('salesTable').innerHTML =
           '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">業務員資料需確認欄位名稱</td></tr>';
@@ -558,18 +559,23 @@ function renderFunnel(rows) {
   }).join('');
 }
 
-function renderSalesTable(rows, userMap) {
+function renderSalesTable(orderRows, wonRows, userMap) {
   userMap = userMap || {};
-  // 按業務員 client-side groupby（rows 為個別記錄，非聚合）
   const byOwner = {};
-  rows.forEach(r => {
+  // 訂單數（本月訂購日期）
+  (orderRows || []).forEach(r => {
     const sfId = r.cre39_ownerid || '未知';
-    if (!byOwner[sfId]) byOwner[sfId] = { won: 0, lost: 0, open: 0, ordered: 0, displayName: userMap[sfId] || sfId };
-    // 因查詢已過濾 iswon=true，每筆都是成交記錄
+    if (!byOwner[sfId]) byOwner[sfId] = { ordered: 0, won: 0, displayName: userMap[sfId] || sfId };
+    byOwner[sfId].ordered += 1;
+  });
+  // 成交數（本月開立發票）
+  (wonRows || []).forEach(r => {
+    const sfId = r.cre39_ownerid || '未知';
+    if (!byOwner[sfId]) byOwner[sfId] = { ordered: 0, won: 0, displayName: userMap[sfId] || sfId };
     byOwner[sfId].won += 1;
   });
   const tbody = document.getElementById('salesTable');
-  const entries = Object.entries(byOwner).sort((a, b) => b[1].won - a[1].won);
+  const entries = Object.entries(byOwner).sort((a, b) => b[1].ordered - a[1].ordered);
   if (!entries.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">本月無資料</td></tr>';
     return;
@@ -577,10 +583,10 @@ function renderSalesTable(rows, userMap) {
   tbody.innerHTML = entries.map(([sfId, d]) => `
     <tr>
       <td>${d.displayName}</td>
-      <td>${d.ordered || d.won}</td>
+      <td>${d.ordered}</td>
       <td><span class="badge badge-green">${d.won}</span></td>
-      <td><span class="badge badge-blue">${d.open}</span></td>
-      <td><span class="badge badge-red">${d.lost}</span></td>
+      <td><span class="badge badge-blue">0</span></td>
+      <td><span class="badge badge-red">0</span></td>
     </tr>
   `).join('');
 }
