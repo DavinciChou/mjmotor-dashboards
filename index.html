@@ -256,6 +256,13 @@
   <div class="toolbar">
     <label style="font-size:13px;color:var(--muted)">月份：</label>
     <select id="monthSelect" onchange="loadData()"></select>
+    <label style="font-size:13px;color:var(--muted);margin-left:8px">營業所：</label>
+    <select id="storeSelect" onchange="loadData()">
+      <option value="">全部（營業部）</option>
+      <option value="八德展示中心">八德展示中心</option>
+      <option value="中壢展示中心">中壢展示中心</option>
+      <option value="桃園展示中心">桃園展示中心</option>
+    </select>
     <button class="refresh-btn" onclick="loadData()">⟳ 重新整理</button>
   </div>
 
@@ -428,6 +435,11 @@ function monthRange() {
   return { start, end, y, m };
 }
 
+function storeFilter() {
+  const store = document.getElementById('storeSelect').value;
+  return store ? ` and cre39_store__c eq '${store}'` : '';
+}
+
 // ──────────────────────────────────────────
 // Dataverse fetch
 // ──────────────────────────────────────────
@@ -460,33 +472,36 @@ async function loadData() {
 
   try {
     const { start, end } = monthRange();
+    const sf = storeFilter();
 
     // ① 有望客戶總數
-    const totalQ = `${ENTITY}?$apply=aggregate($count as cnt)`;
+    const totalQ = sf
+      ? `${ENTITY}?$apply=filter(cre39_store__c eq '${document.getElementById('storeSelect').value}')/aggregate($count as cnt)`
+      : `${ENTITY}?$apply=aggregate($count as cnt)`;
     dvFetch(totalQ).then(d => {
       setValue('kpi-total', (d.value?.[0]?.cnt ?? '—'), 'blue');
     }).catch(() => setValue('kpi-total', '—', 'blue'));
 
     // ② 本月成交（iswon=true，依「開立發票日」= cre39_dmsdeliverydate__c）
-    const wonQ = `${ENTITY}?$apply=filter(cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end})/aggregate($count as cnt)`;
+    const wonQ = `${ENTITY}?$apply=filter(cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf})/aggregate($count as cnt)`;
     dvFetch(wonQ).then(d => {
       setValue('kpi-won', (d.value?.[0]?.cnt ?? '—'), 'green');
     }).catch(() => setValue('kpi-won', '—', 'green'));
 
     // ③ 本月訂單（依「訂購日期」= cre39_orderdate__c，不限 stage）
-    const orderedQ = `${ENTITY}?$apply=filter(cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end})/aggregate($count as cnt)`;
+    const orderedQ = `${ENTITY}?$apply=filter(cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf})/aggregate($count as cnt)`;
     dvFetch(orderedQ).then(d => {
       setValue('kpi-ordered', (d.value?.[0]?.cnt ?? '—'), 'orange');
     }).catch(() => setValue('kpi-ordered', '—', 'orange'));
 
     // ④ 進行中商機（isclosed = false）
-    const openQ = `${ENTITY}?$apply=filter(cre39_isclosed eq false)/aggregate($count as cnt)`;
+    const openQ = `${ENTITY}?$apply=filter(cre39_isclosed eq false${sf})/aggregate($count as cnt)`;
     dvFetch(openQ).then(d => {
       setValue('kpi-open', (d.value?.[0]?.cnt ?? '—'), 'purple');
     }).catch(() => setValue('kpi-open', '—', 'purple'));
 
     // ⑤ 本月流失（isclosed=true, iswon=false，依 closedate）
-    const lostQ = `${ENTITY}?$apply=filter(cre39_isclosed eq true and cre39_iswon eq false and cre39_closedate ge ${start} and cre39_closedate lt ${end})/aggregate($count as cnt)`;
+    const lostQ = `${ENTITY}?$apply=filter(cre39_isclosed eq true and cre39_iswon eq false and cre39_closedate ge ${start} and cre39_closedate lt ${end}${sf})/aggregate($count as cnt)`;
     dvFetch(lostQ).then(d => {
       setValue('kpi-lost', (d.value?.[0]?.cnt ?? '—'), 'red');
     }).catch(() => setValue('kpi-lost', '—', 'red'));
@@ -494,7 +509,7 @@ async function loadData() {
     // ⑥ 漏斗（各 Stage 分別計數，Dataverse 不支援 text 欄位 server-side groupby）
     const FUNNEL_STAGES = ['來店', '試乘', '預約', '簽訂', '領牌'];
     Promise.all(FUNNEL_STAGES.map(stage =>
-      dvFetch(`${ENTITY}?$apply=filter(cre39_stagename eq '${stage}')/aggregate($count as cnt)`)
+      dvFetch(`${ENTITY}?$apply=filter(cre39_stagename eq '${stage}'${sf})/aggregate($count as cnt)`)
         .then(d => ({ cre39_stagename: stage, cnt: d.value?.[0]?.cnt || 0 }))
         .catch(() => ({ cre39_stagename: stage, cnt: 0 }))
     )).then(rows => renderFunnel(rows.filter(r => r.cnt > 0))).catch(() => {
@@ -502,8 +517,8 @@ async function loadData() {
     });
 
     // ⑦ 業務員本月成績（訂單 by orderdate__c，成交 by dmsdeliverydate__c + iswon）
-    const orderQ   = `${ENTITY}?$filter=cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}&$select=cre39_ownerid&$top=500`;
-    const wonQ2    = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}&$select=cre39_ownerid&$top=500`;
+    const orderQ   = `${ENTITY}?$filter=cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`;
+    const wonQ2    = `${ENTITY}?$filter=cre39_iswon eq true and cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`;
     const userMapQ = `cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`;
     Promise.all([dvFetch(orderQ), dvFetch(wonQ2), dvFetch(userMapQ).catch(() => ({ value: [] }))])
       .then(([orderData, wonData, userData]) => {
