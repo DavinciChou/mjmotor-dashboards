@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
@@ -1111,10 +1111,10 @@ async function loadInsightData() {
       ]) +
       card('var(--green)','🏆 業務員本月訂單排行',salesRows) +
       card('var(--red)','🔔 客戶跟進警示',[
+        '• '+hl('近4週帳齡未評級','var(--teal)')+'：共 '+ageTotalAll+' 位進行中客戶中，'+hl(ageTotalNoLv+' 位（'+ageNoLvPct+'%）尚未填寫熱度',ageNoLvPct>=50?'var(--red)':ageNoLvPct>=30?'var(--orange)':'var(--green)')+'，詳見下方帳齡跟進分析。',
         '• '+hl('H 級滯留','var(--red)')+'：'+staleH30+' 位已建立逾 30 天仍未下訂'+(staleH60>0?'，其中 '+hl(staleH60+' 位超過 60 天','var(--red)')+'，流失風險高。':'，建議本週跟進。'),
         '• '+hl('A 級滯留','var(--orange)')+'：'+staleA30+' 位逾 30 天未下訂'+(staleA60>0?'，其中 '+hl(staleA60+' 位超過 60 天','var(--orange)')+'，熱度持續下降中。':'。'),
-        '• 本月新增 H 級 '+hCount+' 位、A 級 '+aCount+' 位，建立後 2 週內須完成強力跟進，避免滑入滯留清單。',
-        '• '+hl('近4週帳齡未評級','var(--teal)')+'：共 '+ageTotalAll+' 位進行中客戶中，'+hl(ageTotalNoLv+' 位（'+ageNoLvPct+'%）尚未填寫熱度',ageNoLvPct>=50?'var(--red)':ageNoLvPct>=30?'var(--orange)':'var(--green)')+'，詳見下方帳齡跟進分析。'
+        '• 本月新增 H 級 '+hCount+' 位、A 級 '+aCount+' 位，建立後 2 週內須完成強力跟進，避免滑入滯留清單。'
       ]) +
       card('var(--accent2)','🚗 車款銷售結構',[
         '• '+hl(topCar[0],'var(--accent2)')+' 為本月主力，訂單 '+topCar[1]+' 張（'+(ord>0?Math.round(topCar[1]/ord*100):0)+'%）。',
