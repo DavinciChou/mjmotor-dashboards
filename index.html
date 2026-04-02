@@ -524,6 +524,7 @@ function onStoreChange() {
   historyLoaded = false;
   loadData();
   if (currentTab === 'history') loadHistoryData(false);
+  if (currentTab === 'follow')  loadFollowData();
 }
 function onHistStoreChange() {
   document.getElementById('storeSelect').value = document.getElementById('storeSelectHist').value;
@@ -553,7 +554,7 @@ function ageBounds() {
 }
 function storeFilter()     { const v = document.getElementById('storeSelect').value;     return v ? ` and cre39_store__c eq '${v}'` : ''; }
 function carFilter()       { const v = document.getElementById('carSelect').value;       return v ? ` and cre39_carcategory__c eq '${v}'` : ''; }
-function onCarChange()     { historyLoaded = false; loadData(); }
+function onCarChange()     { historyLoaded = false; loadData(); if (currentTab === 'follow') loadFollowData(); }
 function histStoreFilter() { const v = document.getElementById('storeSelectHist').value; return v ? ` and cre39_store__c eq '${v}'` : ''; }
 function setVal(id, val, cls) {
   const el = document.getElementById(id); if (!el) return;
@@ -1212,7 +1213,8 @@ async function loadFollowData() {
   try {
     const tok = await getToken();
     const store = document.getElementById('storeSelect')?.value || '';
-    const sf = store ? ` and cre39_store__c eq '${store}'` : '';
+    const car = document.getElementById('carSelect')?.value || '';
+    const sf = (store ? ` and cre39_store__c eq '${store}'` : '') + (car ? ` and cre39_carcategory__c eq '${car}'` : '');
     const now = new Date();
     const w4ago      = new Date(now - 28*86400000).toISOString().split('T')[0];
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
