@@ -451,9 +451,11 @@ async function initMsal() {
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
     account = accounts[0];
-    try { await msalInstance.acquireTokenSilent({ ...loginRequest, account }); showDashboard(); }
-    catch { /* need interactive */ }
+    try { await msalInstance.acquireTokenSilent({ ...loginRequest, account }); showDashboard(); return; }
+    catch { /* silent failed, fall through to auto-redirect */ }
   }
+  // 無快取帳號或 silent 失敗 → 自動跳轉 Microsoft 登入，不需手動點按鈕
+  await msalInstance.loginRedirect(loginRequest);
 }
 async function login() {
   document.getElementById('loginBtn').textContent = '登入中…';
