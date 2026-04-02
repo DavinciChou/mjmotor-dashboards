@@ -218,6 +218,7 @@
       <button class="page-tab active" onclick="switchPageTab('recent',this)">📊 近期數據</button>
       <button class="page-tab" onclick="switchPageTab('history',this)">📁 歷史累積</button>
       <button class="page-tab" onclick="switchPageTab('insight',this)">💡 本月分析</button>
+      <button class="page-tab" onclick="switchPageTab('follow',this)">📞 跟進分析</button>
     </div>
   </div>
 
@@ -365,7 +366,13 @@
     <div id="insightContent">
       <div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>
     </div>
-  </div>  <div id="page-history" class="page-panel">
+  </div>  <!-- ══ 分頁④：跟進分析 ══ -->
+  <div id="page-follow" class="page-panel">
+    <div id="followContent">
+      <div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>
+    </div>
+  </div>
+  <div id="page-history" class="page-panel">
     <div class="toolbar">
       <label>營業所：</label>
       <select id="storeSelectHist" onchange="onHistStoreChange()">
@@ -510,6 +517,7 @@ function switchPageTab(id, btn) {
   currentTab = id;
   if (id === 'history' && !historyLoaded) loadHistoryData(false);
   if (id === 'insight') loadInsightData();
+  if (id === 'follow') loadFollowData();
 }
 function onStoreChange() {
   document.getElementById('storeSelectHist').value = document.getElementById('storeSelect').value;
@@ -1195,6 +1203,134 @@ async function loadInsightData() {
 
 // 歷史累積
 // ════════════════════════════════════════
+// ══ 跟進分析頁 ══
+let followLoaded = false;
+async function loadFollowData() {
+  const el = document.getElementById('followContent');
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>';
+
+  try {
+    const tok = await getToken();
+    const store = document.getElementById('storeSelect')?.value || '';
+    const sf = store ? ` and cre39_store__c eq '${store}'` : '';
+
+    // 近4週未結案客戶（對齊帳齡分析）
+    const w4ago = new Date(Date.now() - 28*86400000).toISOString().split('T')[0];
+    const d7    = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
+    const d14   = new Date(Date.now() - 14*86400000).toISOString().split('T')[0];
+    const baseFilter = `cre39_isclosed eq false and cre39_createddate ge ${w4ago}${sf}`;
+
+    // 取所有記錄（含 ownerid + lastactivitydate）
+    const [recs, uData] = await Promise.all([
+      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c&$filter=${baseFilter}&$top=2000`, tok),
+      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`, {silent:true}).catch(() => ({value:[]}))
+    ]);
+
+    // userMap
+    const userMap = {};
+    (uData.value||[]).forEach(u => { if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name; });
+
+    const rows = recs.value || [];
+    const today = Date.now();
+
+    // 分類每筆
+    const classify = (r) => {
+      const lad = r.cre39_lastactivitydate;
+      if (!lad) return 'never';
+      const diff = Math.floor((today - new Date(lad).getTime()) / 86400000);
+      if (diff <= 7) return 'ok';
+      if (diff <= 14) return 'warn';
+      return 'crit';
+    };
+
+    // 整體統計
+    const total = rows.length;
+    let ok=0, warn=0, crit=0, never=0;
+    rows.forEach(r => { const c=classify(r); if(c==='ok')ok++; else if(c==='warn')warn++; else if(c==='crit')crit++; else never++; });
+    const compRate = total > 0 ? Math.round(ok/total*100) : 0;
+    const compColor = compRate>=80?'var(--green)':compRate>=60?'var(--orange)':'var(--red)';
+
+    // 業務員分組
+    const bySales = {};
+    rows.forEach(r => {
+      const name = userMap[r.cre39_ownerid] || r.cre39_ownerid || '未知';
+      if (!bySales[name]) bySales[name] = {ok:0,warn:0,crit:0,never:0,total:0};
+      bySales[name].total++;
+      const c = classify(r);
+      bySales[name][c]++;
+    });
+
+    // 排序：合規率由低到高
+    const salesArr = Object.entries(bySales).sort((a,b) => (a[1].ok/a[1].total) - (b[1].ok/b[1].total));
+
+    // HTML helpers
+    const hl = (v,c) => `<span style="color:${c};font-weight:700">${v}</span>`;
+    const card = (borderColor, title, body) =>
+      `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;border-top:3px solid ${borderColor}">` +
+      `<div style="font-size:13px;font-weight:600;margin-bottom:14px">${title}</div>${body}</div>`;
+
+    // ── KPI 三卡 ──
+    const kpiGrid = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">` +
+      [`<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:${compColor}">${compRate}%</div><div style="font-size:11px;color:var(--muted)">整體合規率（≤7天）</div></div>`,
+       `<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--orange)">${warn}</div><div style="font-size:11px;color:var(--muted)">8-14天逾期</div></div>`,
+       `<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--red)">${crit+never}</div><div style="font-size:11px;color:var(--muted)">14天以上（含從未聯繫）</div></div>`
+      ].join('') + '</div>';
+
+    // ── 摘要說明 ──
+    const summary = `<div style="background:#0f1f2f;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.8">` +
+      `近4週進行中客戶共 ${hl(total,'var(--text)')} 筆　` +
+      `${hl(ok+'筆','var(--green)')} 7天內已聯繫　` +
+      `${hl(warn+'筆','var(--orange)')} 逾期8-14天　` +
+      `${hl(crit+'筆','var(--red)')} 逾14天　` +
+      `${never>0?hl(never+'筆從未聯繫','var(--red)'):''}` +
+    `</div>`;
+
+    // ── 業務員合規表 ──
+    const salesRows = salesArr.map(([name, s]) => {
+      const rate = Math.round(s.ok/s.total*100);
+      const rc = rate>=80?'var(--green)':rate>=60?'var(--orange)':'var(--red)';
+      const barW = rate;
+      return `<tr>
+        <td style="font-weight:600;padding:8px">${name}</td>
+        <td style="padding:8px;color:var(--muted)">${s.total}</td>
+        <td style="padding:8px;color:var(--green)">${s.ok}</td>
+        <td style="padding:8px;color:var(--orange)">${s.warn||'—'}</td>
+        <td style="padding:8px;color:var(--red)">${(s.crit+s.never)||'—'}</td>
+        <td style="padding:8px;color:${rc};font-weight:700">${rate}%</td>
+        <td style="padding:8px">
+          <div style="background:#1e2130;border-radius:4px;height:6px;width:80px">
+            <div style="width:${barW}%;height:6px;border-radius:4px;background:${rc}"></div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    const salesTable = `<div style="margin-bottom:12px;display:flex;gap:16px;font-size:12px;color:var(--muted)">
+      <span>🟢 合規（≤7天）</span><span>🟠 逾期（8-14天）</span><span>🔴 嚴重（>14天＋從未）</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="color:var(--muted);font-size:12px">
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">業務員</th>
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">負責客戶</th>
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🟢合規</th>
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🟠8-14天</th>
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🔴>14天</th>
+        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">合規率</th>
+        <th style="padding:6px 8px;border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody>${salesRows}</tbody>
+    </table>`;
+
+    el.innerHTML = '<div style="max-width:900px">' +
+      card('var(--teal)', '📞 週聯繫合規追蹤 <span style="font-size:12px;color:var(--muted);font-weight:400">（以 SF LastActivityDate 計算，近4週進行中客戶）</span>',
+        kpiGrid + summary + salesTable) +
+      '</div>';
+
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);padding:20px">載入失敗：${e.message}</div>`;
+  }
+}
+
 async function loadHistoryData(force) {
   if (historyLoaded && !force) return;
   document.getElementById('histError').style.display = 'none';
