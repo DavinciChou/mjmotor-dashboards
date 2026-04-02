@@ -632,7 +632,7 @@ async function loadData() {
       dvCount(`cre39_createddate ge ${prevStart} and cre39_createddate lt ${prevEnd}${sf}`),
       dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}`),
       dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf}`),
-      dvCount(`cre39_orderdate__c lt ${start} and cre39_orderdate__c ne null and cre39_isclosed eq false${sf}`),
+      dvCount(`cre39_orderdate__c lt ${start} and cre39_orderdate__c ne null and cre39_isclosed eq false and cre39_stagename ne '領牌' and cre39_carcategory__c ne 'MG4'${sf}`),
       // 八德
       dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end} and cre39_store__c eq '八德展示中心'`),
       dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end} and cre39_store__c eq '八德展示中心'`),
@@ -977,7 +977,7 @@ async function loadInsightData() {
     const [ord,won,bo,prevOrd,prevWon,bdOrd,clOrd,tyOrd,bdWon,clWon,tyWon,hsOrd,zsOrd,ehOrd,mg4Ord,g5Ord,hCount,aCount,staleH30,staleH60,staleA30,staleA60,nullStore,nullCar,nullLevel,salesOrdData,salesWonData,uData] = await Promise.all([
       dvCount('cre39_orderdate__c ge '+start+' and cre39_orderdate__c lt '+end+sf),
       dvCount('cre39_dmsdeliverydate__c ge '+start+' and cre39_dmsdeliverydate__c lt '+end+sf),
-      dvCount('cre39_orderdate__c lt '+start+' and cre39_orderdate__c ne null and cre39_isclosed eq false'+sf),
+      dvCount('cre39_orderdate__c lt '+start+' and cre39_orderdate__c ne null and cre39_isclosed eq false and cre39_stagename ne '領牌' and cre39_carcategory__c ne 'MG4''+sf),
       dvCount('cre39_orderdate__c ge '+prevStart+' and cre39_orderdate__c lt '+prevEnd+sf),
       dvCount('cre39_dmsdeliverydate__c ge '+prevStart+' and cre39_dmsdeliverydate__c lt '+prevEnd+sf),
       dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_store__c eq '八德展示中心'"),
