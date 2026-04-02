@@ -1,0 +1,1204 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>銘勁汽車 · 營業數據面板</title>
+  <style>
+    :root {
+      --bg:#0f1117; --surface:#1a1d2e; --surface2:#242740;
+      --accent:#4f8ef7; --accent2:#7c5cfc; --green:#22c55e;
+      --orange:#f97316; --red:#ef4444; --teal:#06b6d4;
+      --yellow:#eab308; --amber:#f59e0b;
+      --text:#e2e8f0; --muted:#94a3b8; --border:#2d3252;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+    /* Header */
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--border);}
+    .logo{display:flex;align-items:center;gap:10px;}
+    .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;}
+    .logo-text{font-size:17px;font-weight:600;}
+    .logo-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+    .header-right{display:flex;align-items:center;gap:12px;}
+    #userInfo{font-size:14px;color:var(--muted);}
+    #refreshTime{font-size:12px;color:var(--muted);}
+    #logoutBtn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;}
+
+    /* Auth */
+    #authPanel{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:16px;}
+    #authPanel h2{font-size:22px;}
+    #authPanel p{color:var(--muted);font-size:14px;}
+    #loginBtn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:8px;padding:12px 32px;font-size:15px;font-weight:600;cursor:pointer;}
+
+    /* Page Tabs */
+    .page-tabs{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:1px solid var(--border);padding:0 0 0 4px;}
+    .tab-btns{display:flex;align-items:center;}
+    .tab-controls{display:flex;align-items:center;gap:8px;padding-left:24px;}
+    .tab-controls label{font-size:13px;color:var(--muted);}
+    .page-tab{padding:12px 22px;font-size:14px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px;}
+    .page-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .page-tab:hover:not(.active){color:var(--text);}
+
+    /* Dashboard */
+    #dashboard{display:none;}
+    .page-panel{display:none;padding:22px 28px;}
+    .page-panel.active{display:block;}
+
+    /* Toolbar */
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+    .toolbar label{font-size:13px;color:var(--muted);}
+    select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
+    .refresh-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;}
+    .refresh-btn:hover{background:var(--border);}
+
+    /* Section title */
+    .sec{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 10px;}
+    .sec:first-child{margin-top:0;}
+
+    /* KPI Cards */
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;}
+    .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+    .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+    .kpi-card.blue::before{background:var(--accent);}
+    .kpi-card.green::before{background:var(--green);}
+    .kpi-card.orange::before{background:var(--orange);}
+    .kpi-card.red::before{background:var(--red);}
+    .kpi-card.teal::before{background:var(--teal);}
+    .kpi-card.yellow::before{background:var(--yellow);}
+    .kpi-card.purple::before{background:var(--accent2);}
+    .kl{font-size:12px;color:var(--muted);margin-bottom:8px;}
+    .kv{font-size:30px;font-weight:700;line-height:1;}
+    .kv.blue{color:var(--accent);} .kv.green{color:var(--green);} .kv.orange{color:var(--orange);}
+    .kv.red{color:var(--red);} .kv.teal{color:var(--teal);} .kv.yellow{color:var(--yellow);}
+    .kv.purple{color:var(--accent2);}
+    .ku{font-size:13px;color:var(--muted);margin-top:4px;}
+    .kd{font-size:12px;margin-top:5px;}
+    .kd.up{color:var(--green);} .kd.down{color:var(--red);} .kd.flat{color:var(--muted);}
+
+    /* Distribution cards (grade + age) */
+    .dist-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+    .dist-card.grade::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--red),var(--yellow),var(--amber));}
+    .dist-card.age::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--teal);}
+    .dist-card.src::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent2);}
+    .dist-card.vehicle::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);}
+    .dist-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+    .dist-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:.3px;}
+    .dist-total{font-size:22px;font-weight:700;}
+    /* Per-card month chips */
+    .card-chips{display:flex;gap:6px;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+    .card-chips .chips-lbl{font-size:11px;color:var(--muted);margin-right:2px;flex-shrink:0;}
+    .card-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:14px;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);font-size:11px;color:#64748b;transition:all .15s;user-select:none;}
+    .card-chip.on{border-color:var(--teal);background:#06b6d418;color:var(--text);}
+    .card-chip .cdot{width:5px;height:5px;border-radius:50%;background:#334155;flex-shrink:0;transition:background .15s;}
+    .card-chip.on .cdot{background:var(--teal);}
+    .chips-count{margin-left:auto;font-size:11px;color:var(--muted);}
+    .chips-count strong{color:var(--teal);}
+    .dist-bars{display:flex;flex-direction:column;gap:7px;}
+    .dist-row{display:flex;align-items:center;gap:8px;}
+    .dist-lbl{width:56px;font-size:12px;flex-shrink:0;}
+    .dist-bg{flex:1;background:var(--surface2);border-radius:3px;height:20px;overflow:hidden;}
+    .dist-bar{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:11px;font-weight:600;color:#fff;min-width:2px;transition:width .8s ease;}
+    .dist-num{display:flex;flex-shrink:0;}
+    .dist-num .n{width:54px;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);}
+    .dist-num .p{width:50px;text-align:left;font-size:11px;color:var(--muted);padding-left:4px;font-variant-numeric:tabular-nums;}
+
+    /* Top KPI cards */
+    .top-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:4px;}
+    .top-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;}
+    .top-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+    .top-card.ord::before{background:var(--accent2);}
+    .top-card.win::before{background:var(--green);}
+    .top-card.bo::before{background:var(--yellow);}
+    .top-lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:6px;}
+    .top-val{font-size:40px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
+    .top-card.ord .top-val{color:var(--accent2);}
+    .top-card.win .top-val{color:var(--green);}
+    .top-card.bo  .top-val{color:var(--yellow);}
+    .top-unit{font-size:12px;color:#64748b;margin-top:4px;}
+    /* Store grid */
+    .store-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+    .store-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+    .store-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+    .store-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+    .store-lbl{font-size:11px;color:var(--muted);}
+    .store-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+    /* Two-col */
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:760px){.two-col{grid-template-columns:1fr;}}
+
+    /* Chart/Table boxes */
+    .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;}
+    .chart-box h3{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:12px;}
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+
+    /* Table */
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    thead th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+    tbody tr{border-bottom:1px solid var(--border);}
+    tbody tr:last-child{border-bottom:none;}
+    tbody tr:hover{background:var(--surface2);}
+    tbody td{padding:10px 14px;}
+    .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:500;}
+    .badge-green{background:rgba(34,197,94,.15);color:var(--green);}
+    .badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow);}
+    .badge-blue{background:rgba(79,142,247,.15);color:var(--accent);}
+    .badge-red{background:rgba(239,68,68,.15);color:var(--red);}
+
+    /* Funnel */
+    .funnel-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .funnel-label{width:72px;font-size:12px;color:var(--muted);flex-shrink:0;text-align:right;}
+    .funnel-bg{flex:1;background:var(--surface2);border-radius:4px;height:26px;overflow:hidden;}
+    .funnel-bar{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:10px;font-size:12px;font-weight:600;color:#fff;}
+    .funnel-cnt{width:55px;text-align:right;font-size:12px;color:var(--text);}
+
+    /* Hist KPI */
+    .hist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;}
+
+    /* Skeleton */
+    .skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px;height:32px;width:80px;}
+    @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+    /* Error */
+    .error-msg{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px 16px;color:var(--red);font-size:13px;margin-top:8px;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">銘</div>
+    <div><div class="logo-text">銘勁汽車</div><div class="logo-sub">營業數據面板</div></div>
+  </div>
+  <div class="header-right">
+    <span id="userInfo">未登入</span>
+    <span id="refreshTime"></span>
+    <button id="logoutBtn" style="display:none" onclick="logout()">登出</button>
+  </div>
+</header>
+
+<!-- 未登入 -->
+<div id="authPanel">
+  <div class="logo-icon" style="width:56px;height:56px;font-size:26px;margin-bottom:8px">銘</div>
+  <h2>銘勁汽車 · 營業數據面板</h2>
+  <p>請使用銘勁公司帳號登入以查看數據</p>
+  <button id="loginBtn" onclick="login()">🔐 使用 Microsoft 帳號登入</button>
+  <div id="authError" class="error-msg" style="display:none"></div>
+</div>
+
+<!-- 主畫面 -->
+<div id="dashboard">
+  <div class="page-tabs">
+    <div class="tab-controls">
+      <label>月份：</label>
+      <select id="monthSelect" onchange="loadData()"></select>
+      <label>營業所：</label>
+      <select id="storeSelect" onchange="onStoreChange()">
+        <option value="">全部（營業部）</option>
+        <option value="八德展示中心">八德展示中心</option>
+        <option value="中壢展示中心">中壢展示中心</option>
+        <option value="桃園展示中心">桃園展示中心</option>
+      </select>
+      <label>車款：</label>
+      <select id="carSelect" onchange="onCarChange()">
+        <option value="">全部車款</option>
+        <option value="HS">HS</option>
+        <option value="ZS">ZS</option>
+        <option value="EH">EH</option>
+        <option value="MG4">MG4</option>
+        <option value="G5">G50</option>
+      </select>
+      
+    </div>
+    <div class="tab-btns">
+      <button class="page-tab active" onclick="switchPageTab('recent',this)">📊 近期數據</button>
+      <button class="page-tab" onclick="switchPageTab('history',this)">📁 歷史累積</button>
+      <button class="page-tab" onclick="switchPageTab('insight',this)">💡 本月分析</button>
+    </div>
+  </div>
+
+  <!-- ══ 分頁①：近期數據 ══ -->
+  <div id="page-recent" class="page-panel active">
+
+    <!-- ══ ① 本月業績 ══ -->
+    <div class="sec" style="margin-top:0">本月業績</div>
+    <div class="top-kpi">
+      <div class="top-card ord">
+        <div class="top-lbl">本月訂單</div>
+        <div class="top-val" id="kpi-ordered"><div class="skeleton" style="height:40px;width:80px;display:inline-block"></div></div>
+        <div class="top-unit">張</div>
+      </div>
+      <div class="top-card win">
+        <div class="top-lbl">本月領牌</div>
+        <div class="top-val" id="kpi-won"><div class="skeleton" style="height:40px;width:80px;display:inline-block"></div></div>
+        <div class="top-unit">台</div>
+      </div>
+      <div class="top-card bo">
+        <div class="top-lbl">上月殘留 BO</div>
+        <div class="top-val" id="kpi-bo"><div class="skeleton" style="height:40px;width:80px;display:inline-block"></div></div>
+        <div class="top-unit">張</div>
+      </div>
+    </div>
+
+    <!-- ══ ② 客戶數據 ══ -->
+    <div class="sec">客戶數據</div>
+    <div class="kpi-grid">
+      <div class="kpi-card teal">
+        <div class="kl">本週新增</div>
+        <div class="kv teal" id="kpi-week-new"><div class="skeleton"></div></div>
+        <div class="ku">筆</div>
+        <div class="kd flat" id="kpi-week-new-delta">計算中…</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kl">本月新增</div>
+        <div class="kv blue" id="kpi-month-new"><div class="skeleton"></div></div>
+        <div class="ku">筆</div>
+        <div class="kd flat" id="kpi-month-new-delta">計算中…</div>
+      </div>
+    </div>
+
+    <!-- ══ ④ 門市對比 ══ -->
+    <div class="sec">門市對比（本月）</div>
+    <div class="store-grid" id="storeGrid">
+      <div class="skeleton" style="height:110px;border-radius:12px"></div>
+      <div class="skeleton" style="height:110px;border-radius:12px"></div>
+      <div class="skeleton" style="height:110px;border-radius:12px"></div>
+    </div>
+
+    <!-- ══ ⑤ 商機分析 ══ -->
+    <div class="sec">進行中商機分析</div>
+    <div class="two-col">
+
+      <!-- ① 帳齡分布 -->
+      <div class="dist-card age">
+        <div class="dist-header">
+          <div class="dist-title">帳齡分布</div>
+          <div class="dist-total" style="color:var(--teal)" id="age-total"><div class="skeleton" style="height:22px;width:60px;display:inline-block"></div></div>
+        </div>
+        <div class="card-chips" id="chips-age"></div>
+        <div class="dist-bars" id="ageBars">
+          <div class="skeleton" style="width:100%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:80%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:60%"></div>
+        </div>
+      </div>
+
+      <!-- ② 客戶來源 -->
+      <div class="dist-card src">
+        <div class="dist-header">
+          <div class="dist-title">客戶來源</div>
+          <div class="dist-total" style="color:var(--accent2)" id="src-total"><div class="skeleton" style="height:22px;width:60px;display:inline-block"></div></div>
+        </div>
+        <div class="card-chips" id="chips-src"></div>
+        <div class="dist-bars" id="srcBars">
+          <div class="skeleton" style="width:100%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:75%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:50%"></div>
+        </div>
+      </div>
+
+      <!-- ③ 客戶熱度（評級） -->
+      <div class="dist-card grade">
+        <div class="dist-header">
+          <div class="dist-title">客戶熱度</div>
+          <div class="dist-total" style="color:var(--yellow)" id="grade-total"><div class="skeleton" style="height:22px;width:60px;display:inline-block"></div></div>
+        </div>
+        <div class="card-chips" id="chips-heat"></div>
+        <div class="dist-bars" id="gradeBars">
+          <div class="skeleton" style="width:100%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:100%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:100%"></div>
+        </div>
+      </div>
+
+      <!-- ④ 車款分布 -->
+      <div class="dist-card vehicle">
+        <div class="dist-header">
+          <div class="dist-title">車款分布</div>
+          <div class="dist-total" style="color:var(--green)" id="vehicle-total"><div class="skeleton" style="height:22px;width:60px;display:inline-block"></div></div>
+        </div>
+        <div class="card-chips" id="chips-vc"></div>
+        <div class="dist-bars" id="vehicleBars">
+          <div class="skeleton" style="width:100%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:65%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:40%"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ ⑥ 每週趨勢 ══ -->
+    <div class="sec">每週新增有望客戶趨勢（近 8 週）</div>
+    <div class="chart-box" style="margin-bottom:14px">
+      <h3 id="weeklyChartTitle">載入中…</h3>
+      <canvas id="weeklyChart" height="80"></canvas>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="sec">業務員本月成績</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>業務員</th><th>訂單</th><th>成交</th><th>H 級</th><th>A 級</th></tr></thead>
+            <tbody id="salesTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">載入中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="sec">H / A 級業務員分布（進行中）</div>
+        <div class="chart-box" style="padding:16px">
+          <canvas id="haChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+    <div id="recentError" class="error-msg" style="display:none"></div>
+  </div>
+
+  <!-- ══ 分頁②：歷史累積 ══ -->
+
+  <!-- ══ 分頁③：本月分析建議 ══ -->
+  <div id="page-insight" class="page-panel">
+    <div id="insightContent">
+      <div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>
+    </div>
+  </div>  <div id="page-history" class="page-panel">
+    <div class="toolbar">
+      <label>營業所：</label>
+      <select id="storeSelectHist" onchange="onHistStoreChange()">
+        <option value="">全部（營業部）</option>
+        <option value="八德展示中心">八德展示中心</option>
+        <option value="中壢展示中心">中壢展示中心</option>
+        <option value="桃園展示中心">桃園展示中心</option>
+      </select>
+      <button class="refresh-btn" onclick="loadHistoryData(true)">⟳ 重新整理</button>
+    </div>
+
+    <div class="sec">有望客戶累積總覽</div>
+    <div class="hist-grid">
+      <div class="kpi-card blue">
+        <div class="kl">歷史總累積</div>
+        <div class="kv blue" id="hist-total"><div class="skeleton"></div></div>
+        <div class="ku">全部 Opportunity</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kl">進行中（管道現況）</div>
+        <div class="kv purple" id="hist-open"><div class="skeleton"></div></div>
+        <div class="ku">尚未結案</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kl">歷史成交</div>
+        <div class="kv green" id="hist-won"><div class="skeleton"></div></div>
+        <div class="ku">累積成交</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kl">歷史流失</div>
+        <div class="kv red" id="hist-lost"><div class="skeleton"></div></div>
+        <div class="ku">已結案未成交</div>
+      </div>
+    </div>
+
+    <div class="sec">銷售漏斗（進行中商機分階段）</div>
+    <div class="chart-box" id="funnelArea" style="margin-bottom:14px">
+      <div class="skeleton" style="width:100%;margin-bottom:10px"></div>
+      <div class="skeleton" style="width:80%;margin-bottom:10px"></div>
+      <div class="skeleton" style="width:60%;margin-bottom:10px"></div>
+      <div class="skeleton" style="width:40%"></div>
+    </div>
+
+    <div class="sec">月訂單 vs 成交趨勢（近 12 個月）</div>
+    <div class="chart-box" style="margin-bottom:14px">
+      <canvas id="monthlyChart" height="80"></canvas>
+    </div>
+
+    <div class="sec">各營業所累積比較</div>
+    <div class="chart-box">
+      <canvas id="storeChart" height="80"></canvas>
+    </div>
+    <div id="histError" class="error-msg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ── 設定 ──
+const TENANT_ID    = '6cfd6e7d-2a19-4221-9694-84d6e95ede87';
+const CLIENT_ID    = 'a8a67f9f-d169-462b-9be7-f98fbde96426';
+const DV_BASE      = 'https://mjmotor.crm5.dynamics.com';
+const DV_API       = DV_BASE + '/api/data/v9.2/';
+const ENTITY       = 'cre39_sf_opportunities';
+const REDIRECT_URI = location.origin + location.pathname;
+
+const msalConfig = {
+  auth:  { clientId: CLIENT_ID, authority: 'https://login.microsoftonline.com/' + TENANT_ID, redirectUri: REDIRECT_URI },
+  cache: { cacheLocation: 'sessionStorage' }
+};
+const loginRequest = { scopes: [DV_BASE + '/user_impersonation', 'User.Read'] };
+
+let msalInstance, account;
+let weeklyChartInst = null, haChartInst = null;
+let monthlyChartInst = null, storeChartInst = null;
+let historyLoaded = false, currentTab = 'recent';
+const cardMonths = { age: new Set(), src: new Set(), heat: new Set(), vc: new Set() };
+
+// ── MSAL ──
+async function initMsal() {
+  msalInstance = new msal.PublicClientApplication(msalConfig);
+  const response = await msalInstance.handleRedirectPromise();
+  if (response) { account = response.account; showDashboard(); return; }
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    account = accounts[0];
+    try { await msalInstance.acquireTokenSilent({ ...loginRequest, account }); showDashboard(); }
+    catch { /* need interactive */ }
+  }
+}
+async function login() {
+  document.getElementById('loginBtn').textContent = '登入中…';
+  document.getElementById('authError').style.display = 'none';
+  try { await msalInstance.loginRedirect(loginRequest); }
+  catch (e) {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = '登入失敗：' + e.message;
+    document.getElementById('loginBtn').textContent = '🔐 使用 Microsoft 帳號登入';
+  }
+}
+async function logout() { await msalInstance.logoutRedirect({ account }); }
+let _freshTokenObtained = false;
+async function getToken() {
+  const forceRefresh = !_freshTokenObtained;
+  try {
+    const token = (await msalInstance.acquireTokenSilent({ ...loginRequest, account, forceRefresh })).accessToken;
+    _freshTokenObtained = true;
+    return token;
+  } catch {
+    const token = (await msalInstance.acquireTokenPopup({ ...loginRequest, account })).accessToken;
+    _freshTokenObtained = true;
+    return token;
+  }
+}
+
+// ── UI 初始化 ──
+function showDashboard() {
+  document.getElementById('authPanel').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'block';
+  document.getElementById('userInfo').textContent = (account.name || account.username || '').split('@')[0];
+  buildMonthSelect();
+  loadData();
+}
+function buildMonthSelect() {
+  const sel = document.getElementById('monthSelect');
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月';
+    sel.appendChild(opt);
+  }
+}
+function switchPageTab(id, btn) {
+  document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+  currentTab = id;
+  if (id === 'history' && !historyLoaded) loadHistoryData(false);
+  if (id === 'insight') loadInsightData();
+}
+function onStoreChange() {
+  document.getElementById('storeSelectHist').value = document.getElementById('storeSelect').value;
+  historyLoaded = false;
+  loadData();
+  if (currentTab === 'history') loadHistoryData(false);
+}
+function onHistStoreChange() {
+  document.getElementById('storeSelect').value = document.getElementById('storeSelectHist').value;
+  historyLoaded = false;
+  loadHistoryData(false);
+}
+
+// ── 工具函數 ──
+function monthRange() {
+  const [y, m] = document.getElementById('monthSelect').value.split('-').map(Number);
+  return { start: new Date(y, m - 1, 1).toISOString(), end: new Date(y, m, 1).toISOString(), y, m };
+}
+function weekBounds(weeksAgo) {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - weeksAgo * 7);  // 週一為起點
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);    // 週日為 label
+  const next   = new Date(monday); next.setDate(monday.getDate() + 7);      // 下週一（exclusive end）
+  return { start: monday.toISOString(), end: next.toISOString(), label: sunday };
+}
+function fmtWeekLabel(d) { return (d.getMonth() + 1) + '/' + d.getDate(); }
+function ageBounds() {
+  const now = new Date();
+  const ago = n => { const d = new Date(now); d.setDate(now.getDate() - n); return d.toISOString(); };
+  return { w7:ago(7), w14:ago(14), w21:ago(21), w28:ago(28), w42:ago(42), w56:ago(56), w84:ago(84) };
+}
+function storeFilter()     { const v = document.getElementById('storeSelect').value;     return v ? ` and cre39_store__c eq '${v}'` : ''; }
+function carFilter()       { const v = document.getElementById('carSelect').value;       return v ? ` and cre39_carcategory__c eq '${v}'` : ''; }
+function onCarChange()     { historyLoaded = false; loadData(); }
+function histStoreFilter() { const v = document.getElementById('storeSelectHist').value; return v ? ` and cre39_store__c eq '${v}'` : ''; }
+function setVal(id, val, cls) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = ''; el.textContent = typeof val === 'number' ? val.toLocaleString() : val;
+  if (cls && !el.classList.contains('top-val')) el.className = 'kv ' + cls;
+}
+function setDelta(id, cur, prev) {
+  const el = document.getElementById(id); if (!el) return;
+  if (prev === 0) { el.textContent = `上期 0`; el.className = 'kd flat'; return; }
+  const diff = cur - prev, pct = Math.round(Math.abs(diff / prev) * 100);
+  if (diff > 0)      { el.innerHTML = `↑ ${pct}%（上期 ${prev}）`; el.className = 'kd up'; }
+  else if (diff < 0) { el.innerHTML = `↓ ${pct}%（上期 ${prev}）`; el.className = 'kd down'; }
+  else               { el.innerHTML = `持平（上期 ${prev}）`;        el.className = 'kd flat'; }
+}
+
+// ── Dataverse ──
+let _dvPermissionError = false;
+async function dvFetch(query, {silent = false} = {}) {
+  const token = await getToken();
+  const res = await fetch(DV_API + query, {
+    headers: { 'Authorization': 'Bearer ' + token, 'OData-MaxVersion': '4.0', 'OData-Version': '4.0', 'Accept': 'application/json', 'Prefer': 'odata.include-annotations=*' }
+  });
+  if (!res.ok) {
+    if (!silent && (res.status === 403 || res.status === 401)) {
+      _dvPermissionError = true;
+      const errMsg = `⚠️ 您的帳號無法存取 Dataverse 資料（HTTP ${res.status}）。請聯繫系統管理員，確認您在 Dynamics 365 中擁有「銷售機會」實體的讀取權限。`;
+      showPermissionBanner(errMsg);
+    }
+    throw new Error('HTTP ' + res.status);
+  }
+  return res.json();
+}
+function dvCount(filter) {
+  return dvFetch(`${ENTITY}?$apply=filter(${filter})/aggregate($count as cnt)`)
+    .then(d => d.value?.[0]?.cnt ?? 0)
+    .catch(e => {
+      console.warn('[dvCount]', filter, e.message);
+      return 0;
+    });
+}
+function showPermissionBanner(msg) {
+  if (document.getElementById('permBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'permBanner';
+  banner.style.cssText = 'background:#7f1d1d;color:#fca5a5;padding:14px 28px;font-size:14px;border-bottom:1px solid #991b1b;display:flex;align-items:center;gap:10px;';
+  banner.innerHTML = `<span style="font-size:20px">🔒</span><span>${msg}</span>`;
+  const dashboard = document.getElementById('dashboard');
+  dashboard.parentNode.insertBefore(banner, dashboard);
+}
+
+// ════════════════════════════════════════
+// 近期數據
+// ════════════════════════════════════════
+async function loadData() {
+  document.getElementById('recentError').style.display = 'none';
+  ['kpi-week-new','kpi-month-new'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = '<div class="skeleton"></div>';
+  });
+  ['kpi-ordered','kpi-won','kpi-bo'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = '<div class="skeleton" style="height:40px;width:80px;display:inline-block"></div>';
+  });
+  document.getElementById('kpi-week-new-delta').textContent = '計算中…';
+  document.getElementById('kpi-month-new-delta').textContent = '計算中…';
+
+  try {
+    const { start, end, y, m } = monthRange();
+    const sf = storeFilter() + carFilter();
+    const { w7, w14, w21, w28, w42, w56, w84 } = ageBounds();
+    const thisW = weekBounds(0), lastW = weekBounds(1);
+    const _tmr = new Date(); _tmr.setDate(_tmr.getDate()+1); _tmr.setHours(0,0,0,0);
+    const thisWEnd = _tmr.toISOString();
+    const prevStart = new Date(y, m - 2, 1).toISOString();
+    const prevEnd   = new Date(y, m - 1, 1).toISOString();
+
+    const storeNames = ['八德展示中心','中壢展示中心','桃園展示中心'];
+    const [
+      weekNew, lastWeekNew, monthNew, prevMonthNew,
+      ordCnt, wonCnt, boCnt,
+      bd_ord, bd_won, bd_new,
+      cl_ord, cl_won, cl_new,
+      ty_ord, ty_won, ty_new,
+    ] = await Promise.all([
+      dvCount(`cre39_createddate ge ${thisW.start} and cre39_createddate lt ${thisWEnd}${sf}`),
+      dvCount(`cre39_createddate ge ${lastW.start} and cre39_createddate lt ${lastW.end}${sf}`),
+      dvCount(`cre39_createddate ge ${start} and cre39_createddate lt ${end}${sf}`),
+      dvCount(`cre39_createddate ge ${prevStart} and cre39_createddate lt ${prevEnd}${sf}`),
+      dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}`),
+      dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf}`),
+      dvCount(`cre39_orderdate__c lt ${start} and cre39_orderdate__c ne null and cre39_isclosed eq false${sf}`),
+      // 八德
+      dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end} and cre39_store__c eq '八德展示中心'`),
+      dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end} and cre39_store__c eq '八德展示中心'`),
+      dvCount(`cre39_createddate ge ${start} and cre39_createddate lt ${end} and cre39_store__c eq '八德展示中心'`),
+      // 中壢
+      dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end} and cre39_store__c eq '中壢展示中心'`),
+      dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end} and cre39_store__c eq '中壢展示中心'`),
+      dvCount(`cre39_createddate ge ${start} and cre39_createddate lt ${end} and cre39_store__c eq '中壢展示中心'`),
+      // 桃園
+      dvCount(`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end} and cre39_store__c eq '桃園展示中心'`),
+      dvCount(`cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end} and cre39_store__c eq '桃園展示中心'`),
+      dvCount(`cre39_createddate ge ${start} and cre39_createddate lt ${end} and cre39_store__c eq '桃園展示中心'`),
+    ]);
+
+    setVal('kpi-week-new',  weekNew,  'teal');   setDelta('kpi-week-new-delta',  weekNew,  lastWeekNew);
+    setVal('kpi-month-new', monthNew, 'blue');   setDelta('kpi-month-new-delta', monthNew, prevMonthNew);
+    setVal('kpi-ordered', ordCnt);
+    setVal('kpi-won',     wonCnt);
+    setVal('kpi-bo',      boCnt);
+    renderStoreComparison([
+      { name:'八德展示中心', ord:bd_ord, won:bd_won, new_:bd_new },
+      { name:'中壢展示中心', ord:cl_ord, won:cl_won, new_:cl_new },
+      { name:'桃園展示中心', ord:ty_ord, won:ty_won, new_:ty_new },
+    ]);
+
+    buildCardChips();
+    await Promise.all(['age','src','heat','vc'].map(c => reloadCard(c, sf)));
+
+    loadWeeklyChart(sf);
+    loadSalesperson(start, end, sf);
+
+    document.getElementById('refreshTime').textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+  } catch (e) {
+    document.getElementById('recentError').style.display = 'block';
+    document.getElementById('recentError').textContent = '近期數據載入失敗：' + e.message;
+  }
+}
+
+function numPct(cnt, pct) {
+  return `<div class="dist-num"><span class="n">${cnt.toLocaleString()}</span><span class="p">(${pct}%)</span></div>`;
+}
+
+function renderGrade(counts) {
+  const total = Object.values(counts).reduce((a,b) => a+b, 0);
+  const el = document.getElementById('grade-total');
+  el.textContent = total.toLocaleString(); el.className = 'dist-total'; el.style.color = 'var(--yellow)';
+  const p = n => total > 0 ? (n / total * 100).toFixed(1) : '0.0';
+  const barKeys = ['H','A','B','C'];
+  const barMax  = Math.max(...barKeys.map(k => counts[k] || 0), 1);
+  const colors  = { H:'#ef4444', A:'#eab308', B:'#f59e0b', C:'#4f8ef7' };
+  const bars = barKeys.map(g => {
+    const cnt = counts[g] || 0;
+    const barPct = Math.round((cnt / barMax) * 100);
+    return `<div class="dist-row">
+      <div class="dist-lbl" style="color:${colors[g]};font-weight:700">${g}</div>
+      ${numPct(cnt, p(cnt))}
+      <div class="dist-bg"><div class="dist-bar" style="width:${Math.max(barPct,2)}%;background:${colors[g]}"></div></div></div>`;
+  }).join('');
+  const textPart = `<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;gap:14px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--muted)">D <b style="color:var(--text);margin-left:4px">${(counts.D||0).toLocaleString()}</b><span style="font-size:11px;color:var(--muted);margin-left:3px">(${p(counts.D||0)}%)</span></span>
+    <span style="font-size:12px;color:var(--muted)">E <b style="color:var(--text);margin-left:4px">${(counts.E||0).toLocaleString()}</b><span style="font-size:11px;color:var(--muted);margin-left:3px">(${p(counts.E||0)}%)</span></span>
+    <span style="font-size:12px;color:var(--muted)">F <b style="color:var(--text);margin-left:4px">${(counts.F||0).toLocaleString()}</b><span style="font-size:11px;color:var(--muted);margin-left:3px">(${p(counts.F||0)}%)</span></span>
+  </div>`;
+  document.getElementById('gradeBars').innerHTML = bars + textPart;
+}
+
+function renderAge(counts) {
+  const rows = [
+    { key:'w1',   lbl:'第 1 週', color:'#06b6d4' },
+    { key:'w2',   lbl:'第 2 週', color:'#38bdf8' },
+    { key:'w3',   lbl:'第 3 週', color:'#4f8ef7' },
+    { key:'w4',   lbl:'第 4 週', color:'#eab308' },
+    { key:'w56',  lbl:'5–6 週',  color:'#f59e0b' },
+    { key:'w78',  lbl:'7–8 週',  color:'#f97316' },
+    { key:'w912', lbl:'9–12 週', color:'#ef4444' },
+  ];
+  const inScope = rows.reduce((s, r) => s + (counts[r.key]||0), 0);
+  const max = Math.max(...rows.map(r => counts[r.key]||0), 1);
+  const el = document.getElementById('age-total');
+  el.textContent = inScope.toLocaleString(); el.className = 'dist-total'; el.style.color = 'var(--teal)';
+  const p = n => inScope > 0 ? (n / inScope * 100).toFixed(1) : '0.0';
+  const over = counts.over12w || 0;
+  const note = `<div style="margin-top:10px;font-size:11px;color:var(--muted)">※ 超過 12 週 ${over.toLocaleString()} 筆不列入　冷→暖代表帳齡新→舊</div>`;
+  document.getElementById('ageBars').innerHTML = rows.map(r => {
+    const cnt = counts[r.key] || 0;
+    const barPct = Math.round((cnt / max) * 100);
+    return `<div class="dist-row">
+      <div class="dist-lbl" style="color:${r.color};font-weight:600">${r.lbl}</div>
+      ${numPct(cnt, p(cnt))}
+      <div class="dist-bg"><div class="dist-bar" style="width:${Math.max(barPct,2)}%;background:${r.color}"></div></div></div>`;
+  }).join('') + note;
+}
+
+function renderSource(counts) {
+  const total = counts.dealer + counts.s2 + counts.s5 + counts.s1;
+  const el = document.getElementById('src-total');
+  el.textContent = total.toLocaleString(); el.className = 'dist-total'; el.style.color = 'var(--accent2)';
+  const max = Math.max(...Object.values(counts), 1);
+  const p = n => total > 0 ? (n / total * 100).toFixed(1) : '0.0';
+  const rows = [
+    { lbl:'經銷商', cnt:counts.dealer, color:'var(--accent2)', red:false },
+    { lbl:'來源 2', cnt:counts.s2,     color:'var(--accent)',  red:true  },
+    { lbl:'來源 5', cnt:counts.s5,     color:'var(--teal)',    red:true  },
+    { lbl:'來源 1', cnt:counts.s1,     color:'#475569',        red:true  },
+  ];
+  const note = `<div style="margin-top:10px;font-size:11px;color:var(--red)">※ 來源 1、2、5 為 Salesforce 代碼，標籤待確認</div>`;
+  document.getElementById('srcBars').innerHTML = rows.map(r => {
+    const barPct = Math.round((r.cnt / max) * 100);
+    const lbl = r.red ? `<span style="color:var(--red)">${r.lbl}</span>` : r.lbl;
+    return `<div class="dist-row">
+      <div class="dist-lbl" style="color:${r.color};font-weight:600;font-size:12px;width:62px">${lbl}</div>
+      ${numPct(r.cnt, p(r.cnt))}
+      <div class="dist-bg"><div class="dist-bar" style="width:${Math.max(barPct,2)}%;background:${r.color}"></div></div></div>`;
+  }).join('') + note;
+}
+
+function renderVehicle(counts) {
+  const total = counts.HS + counts.ZS + counts.EH + counts.MG4 + counts.G5 + counts.nullCnt;
+  const el = document.getElementById('vehicle-total');
+  el.textContent = total.toLocaleString(); el.className = 'dist-total'; el.style.color = 'var(--green)';
+  const max = Math.max(counts.HS, counts.ZS, counts.EH, counts.MG4, counts.G5, counts.nullCnt, 1);
+  const p = n => total > 0 ? (n / total * 100).toFixed(1) : '0.0';
+  const rows = [
+    { lbl:'HS',   cnt:counts.HS,      color:'#22c55e' },
+    { lbl:'ZS',   cnt:counts.ZS,      color:'#06b6d4' },
+    { lbl:'EH',   cnt:counts.EH,      color:'#4f8ef7' },
+    { lbl:'MG4',  cnt:counts.MG4,     color:'#eab308' },
+    { lbl:'G5',   cnt:counts.G5,      color:'#475569' },
+    { lbl:'未填', cnt:counts.nullCnt, color:'#334155' },
+  ];
+  document.getElementById('vehicleBars').innerHTML = rows.map(r => {
+    const barPct = Math.round((r.cnt / max) * 100);
+    return `<div class="dist-row">
+      <div class="dist-lbl" style="color:${r.color};font-weight:600;font-size:12px;width:40px">${r.lbl}</div>
+      ${numPct(r.cnt, p(r.cnt))}
+      <div class="dist-bg"><div class="dist-bar" style="width:${Math.max(barPct,2)}%;background:${r.color}"></div></div></div>`;
+  }).join('');
+}
+
+// ── 門市對比 ──
+function renderStoreComparison(stores) {
+  document.getElementById('storeGrid').innerHTML = stores.map(s => `
+    <div class="store-card">
+      <div class="store-name">${s.name.replace('展示中心','')}</div>
+      <div class="store-row"><span class="store-lbl">訂單</span><span class="store-val" style="color:var(--accent2)">${s.ord.toLocaleString()} 張</span></div>
+      <div class="store-row"><span class="store-lbl">領牌</span><span class="store-val" style="color:var(--green)">${s.won.toLocaleString()} 台</span></div>
+      <div class="store-row"><span class="store-lbl">新增客戶</span><span class="store-val" style="color:var(--teal)">${s.new_.toLocaleString()} 筆</span></div>
+    </div>`).join('');
+}
+
+// ── 每張卡獨立月份 chips ──
+function buildCardChips() {
+  const sel = document.getElementById('monthSelect').value;
+  const [sy, sm] = sel.split('-').map(Number);
+  const cards = ['age','src','heat','vc'];
+  for (const card of cards) {
+    cardMonths[card] = new Set();
+    const container = document.getElementById('chips-' + card);
+    container.innerHTML = '';
+    const lbl = document.createElement('span');
+    lbl.className = 'chips-lbl'; lbl.textContent = '月份：';
+    container.appendChild(lbl);
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(sy, sm - 1 - i, 1);
+      const ym = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      const mLabel = (d.getMonth()+1) + '月';
+      const isDefault = (i === 0);
+      if (isDefault) cardMonths[card].add(ym);
+      const chip = document.createElement('span');
+      chip.className = 'card-chip' + (isDefault ? ' on' : '');
+      chip.dataset.ym = ym;
+      chip.innerHTML = `<span class="cdot"></span>${mLabel}`;
+      chip.onclick = () => toggleCardMonth(card, ym, chip);
+      container.appendChild(chip);
+    }
+    const cnt = document.createElement('span');
+    cnt.className = 'chips-count'; cnt.id = card + '-mcount';
+    cnt.innerHTML = '已選 <strong>1</strong> 月';
+    container.appendChild(cnt);
+  }
+}
+
+function toggleCardMonth(card, ym, el) {
+  const s = cardMonths[card];
+  if (s.has(ym)) {
+    if (s.size === 1) return;
+    s.delete(ym); el.classList.remove('on');
+  } else {
+    s.add(ym); el.classList.add('on');
+  }
+  document.getElementById(card+'-mcount').innerHTML = `已選 <strong>${s.size}</strong> 月`;
+  reloadCard(card, storeFilter() + carFilter());
+}
+
+function cardDateRanges(monthSet) {
+  return [...monthSet].sort().map(ym => {
+    const [y, m] = ym.split('-').map(Number);
+    return { start: new Date(y, m-1, 1).toISOString(), end: new Date(y, m, 1).toISOString() };
+  });
+}
+function monthOrFilter(ranges) {
+  if (!ranges.length) return 'cre39_createddate ge 2000-01-01T00:00:00Z';
+  if (ranges.length === 1) return `cre39_createddate ge ${ranges[0].start} and cre39_createddate lt ${ranges[0].end}`;
+  return '(' + ranges.map(r => `(cre39_createddate ge ${r.start} and cre39_createddate lt ${r.end})`).join(' or ') + ')';
+}
+
+async function reloadCard(card, sf) {
+  const mf = monthOrFilter(cardDateRanges(cardMonths[card]));
+  if (card === 'age')  await reloadAge(mf, sf);
+  if (card === 'src')  await reloadSrc(mf, sf);
+  if (card === 'heat') await reloadHeat(mf, sf);
+  if (card === 'vc')   await reloadVehicle(mf, sf);
+}
+
+async function reloadAge(mf, sf) {
+  const { w7, w14, w21, w28, w42, w56, w84 } = ageBounds();
+  const [w1,w2,w3,w4,w56c,w78c,w912c,over] = await Promise.all([
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w7} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w14} and cre39_createddate lt ${w7} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w21} and cre39_createddate lt ${w14} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w28} and cre39_createddate lt ${w21} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w42} and cre39_createddate lt ${w28} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w56} and cre39_createddate lt ${w42} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate ge ${w84} and cre39_createddate lt ${w56} and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_createddate lt ${w84} and ${mf}${sf}`),
+  ]);
+  renderAge({ w1, w2, w3, w4, w56:w56c, w78:w78c, w912:w912c, over12w:over });
+}
+
+async function reloadSrc(mf, sf) {
+  const [dealer, s2, s5, s1] = await Promise.all([
+    dvCount(`cre39_leadsource eq '經銷商' and ${mf}${sf}`),
+    dvCount(`cre39_leadsource eq '2' and ${mf}${sf}`),
+    dvCount(`cre39_leadsource eq '5' and ${mf}${sf}`),
+    dvCount(`cre39_leadsource eq '1' and ${mf}${sf}`),
+  ]);
+  renderSource({ dealer, s2, s5, s1 });
+}
+
+async function reloadHeat(mf, sf) {
+  const [H,A,B,C,D,E,F] = await Promise.all([
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'H' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'A' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'B' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'C' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'D' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'E' and ${mf}${sf}`),
+    dvCount(`cre39_isclosed eq false and cre39_accountlevel__c eq 'F' and ${mf}${sf}`),
+  ]);
+  renderGrade({ H, A, B, C, D, E, F });
+}
+
+async function reloadVehicle(mf, sf) {
+  const [HS,ZS,EH,MG4,G5,nullCnt] = await Promise.all([
+    dvCount(`cre39_carcategory__c eq 'HS' and ${mf}${sf}`),
+    dvCount(`cre39_carcategory__c eq 'ZS' and ${mf}${sf}`),
+    dvCount(`cre39_carcategory__c eq 'EH' and ${mf}${sf}`),
+    dvCount(`cre39_carcategory__c eq 'MG4' and ${mf}${sf}`),
+    dvCount(`cre39_carcategory__c eq 'G5' and ${mf}${sf}`),
+    dvCount(`cre39_carcategory__c eq null and ${mf}${sf}`),
+  ]);
+  renderVehicle({ HS, ZS, EH, MG4, G5, nullCnt });
+}
+
+async function loadWeeklyChart(sf) {
+  const promises = [], labels = [];
+  const _today = new Date();
+  const _tmr2 = new Date(_today); _tmr2.setDate(_today.getDate()+1); _tmr2.setHours(0,0,0,0);
+  const tomorrowISO = _tmr2.toISOString();
+  for (let i = 7; i >= 0; i--) {
+    const wb = weekBounds(i);
+    const endDate = i === 0 ? tomorrowISO : wb.end;
+    labels.push(fmtWeekLabel(wb.label));  // label 固定顯示週日（節點日期）
+    promises.push(dvCount(`cre39_createddate ge ${wb.start} and cre39_createddate lt ${endDate}${sf}`));
+  }
+  const counts = await Promise.all(promises);
+  const store = document.getElementById('storeSelect').value || '全部';
+  document.getElementById('weeklyChartTitle').textContent = `每週新增 · ${store}（近 8 週）`;
+  const ctx = document.getElementById('weeklyChart').getContext('2d');
+  if (weeklyChartInst) weeklyChartInst.destroy();
+  weeklyChartInst = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ data: counts, borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,0.10)', tension:0.4, fill:true, pointBackgroundColor:'#fff', pointBorderColor:'#06b6d4', pointRadius:4 }] },
+    options: { responsive:true, plugins:{legend:{display:false}},
+      scales: { x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2d3252'}}, y:{ticks:{color:'#94a3b8',font:{size:11},precision:0},grid:{color:'#2d3252'},beginAtZero:true} } }
+  });
+}
+
+async function loadSalesperson(start, end, sf) {
+  try {
+    const [oData, wData, hData, aData, uData] = await Promise.all([
+      dvFetch(`${ENTITY}?$filter=cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`),
+      dvFetch(`${ENTITY}?$filter=cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`),
+      dvFetch(`${ENTITY}?$filter=cre39_isclosed eq false and cre39_accountlevel__c eq 'H'${sf}&$select=cre39_ownerid&$top=200`),
+      dvFetch(`${ENTITY}?$filter=cre39_isclosed eq false and cre39_accountlevel__c eq 'A'${sf}&$select=cre39_ownerid&$top=500`),
+      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`, {silent:true}).catch(() => ({value:[]})),
+    ]);
+    const userMap = {};
+    (uData.value||[]).forEach(u => { if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name; });
+    const by = {};
+    const ensure = id => { if (!by[id]) by[id] = {ord:0,won:0,h:0,a:0,name:userMap[id]||id}; };
+    (oData.value||[]).forEach(r => { const id=r.cre39_ownerid||'未知'; ensure(id); by[id].ord++; });
+    (wData.value||[]).forEach(r => { const id=r.cre39_ownerid||'未知'; ensure(id); by[id].won++; });
+    (hData.value||[]).forEach(r => { const id=r.cre39_ownerid||'未知'; ensure(id); by[id].h++; });
+    (aData.value||[]).forEach(r => { const id=r.cre39_ownerid||'未知'; ensure(id); by[id].a++; });
+    const entries = Object.values(by).sort((a,b) => b.ord - a.ord);
+    document.getElementById('salesTable').innerHTML = entries.length
+      ? entries.map(d=>`<tr><td>${d.name}</td><td>${d.ord}</td><td><span class="badge badge-green">${d.won}</span></td><td><span class="badge badge-yellow">${d.h}</span></td><td><span class="badge badge-blue">${d.a}</span></td></tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">本月無資料</td></tr>';
+    const haEntries = entries.filter(d => d.h > 0 || d.a > 0).slice(0, 12);
+    const haCtx = document.getElementById('haChart').getContext('2d');
+    if (haChartInst) haChartInst.destroy();
+    haChartInst = new Chart(haCtx, {
+      type:'bar',
+      data:{ labels:haEntries.map(d=>d.name), datasets:[
+        {label:'H 級', data:haEntries.map(d=>d.h), backgroundColor:'rgba(239,68,68,0.80)', borderRadius:3},
+        {label:'A 級', data:haEntries.map(d=>d.a), backgroundColor:'rgba(234,179,8,0.45)',  borderRadius:3},
+      ]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+        scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2d3252'}},y:{stacked:true,ticks:{color:'#e2e8f0',font:{size:11}},grid:{display:false}}}}
+    });
+  } catch(e) {
+    document.getElementById('salesTable').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">業務員資料載入失敗</td></tr>`;
+  }
+}
+
+// ════════════════════════════════════════
+
+// ── 本月分析建議 ──
+async function loadInsightData() {
+  const el = document.getElementById('insightContent');
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>';
+  try {
+    const { start, end, y, m } = monthRange();
+    const prevStart = new Date(y, m - 2, 1).toISOString();
+    const prevEnd   = new Date(y, m - 1, 1).toISOString();
+    const sf = storeFilter() + carFilter();
+    const now = new Date();
+    const ago30 = new Date(now - 30*24*60*60*1000).toISOString();
+    const ago60 = new Date(now - 60*24*60*60*1000).toISOString();
+
+    const [ord,won,bo,prevOrd,prevWon,bdOrd,clOrd,tyOrd,bdWon,clWon,tyWon,hsOrd,zsOrd,ehOrd,mg4Ord,g5Ord,hCount,aCount,staleH30,staleH60,staleA30,staleA60,nullStore,nullCar,nullLevel,salesOrdData,salesWonData,uData] = await Promise.all([
+      dvCount('cre39_orderdate__c ge '+start+' and cre39_orderdate__c lt '+end+sf),
+      dvCount('cre39_dmsdeliverydate__c ge '+start+' and cre39_dmsdeliverydate__c lt '+end+sf),
+      dvCount('cre39_orderdate__c lt '+start+' and cre39_orderdate__c ne null and cre39_isclosed eq false'+sf),
+      dvCount('cre39_orderdate__c ge '+prevStart+' and cre39_orderdate__c lt '+prevEnd+sf),
+      dvCount('cre39_dmsdeliverydate__c ge '+prevStart+' and cre39_dmsdeliverydate__c lt '+prevEnd+sf),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_store__c eq '八德展示中心'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_store__c eq '中壢展示中心'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_store__c eq '桃園展示中心'"),
+      dvCount("cre39_dmsdeliverydate__c ge "+start+" and cre39_dmsdeliverydate__c lt "+end+" and cre39_store__c eq '八德展示中心'"),
+      dvCount("cre39_dmsdeliverydate__c ge "+start+" and cre39_dmsdeliverydate__c lt "+end+" and cre39_store__c eq '中壢展示中心'"),
+      dvCount("cre39_dmsdeliverydate__c ge "+start+" and cre39_dmsdeliverydate__c lt "+end+" and cre39_store__c eq '桃園展示中心'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq 'HS'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq 'ZS'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq 'EH'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq 'MG4'"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq 'G5'"),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'H' and cre39_createddate ge "+start+" and cre39_createddate lt "+end),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'A' and cre39_createddate ge "+start+" and cre39_createddate lt "+end),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'H' and cre39_createddate le "+ago30+" and cre39_orderdate__c eq null"),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'H' and cre39_createddate le "+ago60+" and cre39_orderdate__c eq null"),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'A' and cre39_createddate le "+ago30+" and cre39_orderdate__c eq null"),
+      dvCount("cre39_isclosed eq false and cre39_accountlevel__c eq 'A' and cre39_createddate le "+ago60+" and cre39_orderdate__c eq null"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_store__c eq null"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_carcategory__c eq null"),
+      dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_accountlevel__c eq null"),
+      dvFetch('cre39_sf_opportunities?$filter=cre39_orderdate__c ge '+start+' and cre39_orderdate__c lt '+end+sf+'&$select=cre39_ownerid,cre39_store__c&$top=1000'),
+      dvFetch('cre39_sf_opportunities?$filter=cre39_dmsdeliverydate__c ge '+start+' and cre39_dmsdeliverydate__c lt '+end+sf+'&$select=cre39_ownerid&$top=1000'),
+      dvFetch('cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300', {silent:true}).catch(function(){return {value:[]};})
+    ]);
+
+    // 建立 SF User ID → 姓名 對照表
+    const userMap = {};
+    (uData.value||[]).forEach(function(u) {
+      if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name;
+    });
+
+    // 建立業務員統計
+    const sby = {};
+    const ensureS = function(id, store) {
+      if (!sby[id]) sby[id] = {ord:0, won:0, name: userMap[id] || id, store: store||''};
+    };
+    (salesOrdData.value||[]).forEach(function(r) {
+      const id = r.cre39_ownerid || '未知'; ensureS(id, r.cre39_store__c); sby[id].ord++;
+    });
+    (salesWonData.value||[]).forEach(function(r) {
+      const id = r.cre39_ownerid || '未知'; ensureS(id, ''); sby[id].won++;
+    });
+    const salesEntries = Object.values(sby).sort(function(a,b){return b.ord-a.ord;});
+    const top5 = salesEntries.slice(0,5);
+    const zeroOrd = salesEntries.filter(function(e){return e.ord===0;}).slice(0,6);
+
+    const ordGrowth = prevOrd > 0 ? Math.round((ord-prevOrd)/prevOrd*100) : 0;
+    const wonGrowth = prevWon > 0 ? Math.round((won-prevWon)/prevWon*100) : 0;
+    const bdRate = bdOrd>0?Math.round(bdWon/bdOrd*100):0;
+    const clRate = clOrd>0?Math.round(clWon/clOrd*100):0;
+    const tyRate = tyOrd>0?Math.round(tyWon/tyOrd*100):0;
+    const rateColor = function(r){return r>=85?'var(--green)':r>=70?'var(--orange)':'var(--red)';};
+    const topCar = [['HS',hsOrd],['ZS',zsOrd],['EH',ehOrd],['MG4',mg4Ord],['G50',g5Ord]].sort(function(a,b){return b[1]-a[1];})[0];
+    const storeData = [['八德',bdOrd,bdWon,bdRate],['中壢',clOrd,clWon,clRate],['桃園',tyOrd,tyWon,tyRate]];
+    const topStore = storeData.slice().sort(function(a,b){return b[1]-a[1];})[0];
+    const lowStore = storeData.slice().sort(function(a,b){return a[3]-b[3];})[0];
+    const hl = function(v,c){return '<strong style="color:'+c+'">'+v+'</strong>';};
+    const card = function(borderColor,title,rows){
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;border-top:3px solid '+borderColor+'">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">'+title+'</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--text);line-height:1.7">'+
+      rows.map(function(r){return '<div>'+r+'</div>';}).join('')+'</div></div>';
+    };
+
+    const dq = [];
+    dq.push(nullStore>0 ? '• '+hl('⚠ 缺營業所','var(--orange)')+'：'+nullStore+' 筆訂單未填門市，影響門市對比數字。' : '• 營業所欄位：'+hl('✓ 本月全部完整','var(--green)')+'。');
+    dq.push(nullCar>0   ? '• '+hl('⚠ 缺車款','var(--orange)')+'：'+nullCar+' 筆訂單未填車款，車款分布統計會低估。' : '• 車款欄位：'+hl('✓ 本月全部完整','var(--green)')+'。');
+    dq.push(nullLevel>0 ? '• '+hl('⚠ 缺客戶評級','var(--orange)')+'：'+nullLevel+' 筆訂單未填熱度。' : '• 客戶評級：'+hl('✓ 本月全部完整','var(--green)')+'。');
+
+    // 業務員排行列
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    const salesRows = top5.map(function(e,i){
+      const rate = e.ord>0?Math.round(e.won/e.ord*100):0;
+      const storeBadge = e.store ? ' <span style="font-size:11px;color:var(--muted)">'+e.store.replace('展示中心','')+'</span>' : '';
+      return '• '+medals[i]+' '+hl(e.name,'var(--text)')+storeBadge+' — 訂單 '+hl(e.ord+' 張','var(--orange)')+'，領牌 '+e.won+' 台（轉交率 '+hl(rate+'%',rateColor(rate))+'）';
+    });
+    if (zeroOrd.length > 0) {
+      salesRows.push('• '+hl('⚠ 本月零訂單','var(--red)')+'：'+zeroOrd.map(function(e){return e.name;}).join('、')+' — 請主管確認狀況。');
+    }
+    if (salesRows.length === 0) {
+      salesRows.push('• 本月尚無訂單資料。');
+    }
+
+    el.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">' +
+      card('var(--accent)','📊 本月業績總結',[
+        '• 訂單 '+hl(ord+' 張','var(--orange)')+'，較上月 '+prevOrd+' 張'+(ordGrowth>=0?'成長 '+hl('+'+ordGrowth+'%','var(--green)'):'下滑 '+hl(ordGrowth+'%','var(--red)'))+' 。',
+        '• 領牌 '+hl(won+' 台','var(--green)')+'，較上月 '+prevWon+' 台'+(wonGrowth>=0?'成長 '+hl('+'+wonGrowth+'%','var(--green)'):'下滑 '+hl(wonGrowth+'%','var(--red)'))+'，交車進度'+(wonGrowth>=10?'穩健':'待加速')+'。',
+        '• 上月殘留 BO '+hl(bo+' 張','var(--yellow)')+'，需追蹤交車排程，避免滾入下月過多。'
+      ]) +
+      card('var(--green)','🏆 業務員本月訂單排行',salesRows) +
+      card('var(--red)','🔔 客戶跟進警示',[
+        '• '+hl('H 級滯留','var(--red)')+'：'+staleH30+' 位已建立逾 30 天仍未下訂'+(staleH60>0?'，其中 '+hl(staleH60+' 位超過 60 天','var(--red)')+'，流失風險高。':'，建議本週跟進。'),
+        '• '+hl('A 級滯留','var(--orange)')+'：'+staleA30+' 位逾 30 天未下訂'+(staleA60>0?'，其中 '+hl(staleA60+' 位超過 60 天','var(--orange)')+'，熱度持續下降中。':'。'),
+        '• 本月新增 H 級 '+hCount+' 位、A 級 '+aCount+' 位，建立後 2 週內須完成強力跟進，避免滑入滯留清單。'
+      ]) +
+      card('var(--accent2)','🚗 車款銷售結構',[
+        '• '+hl(topCar[0],'var(--accent2)')+' 為本月主力，訂單 '+topCar[1]+' 張（'+(ord>0?Math.round(topCar[1]/ord*100):0)+'%）。',
+        '• HS '+hsOrd+' 張（'+(ord>0?Math.round(hsOrd/ord*100):0)+'%）、ZS '+zsOrd+' 張（'+(ord>0?Math.round(zsOrd/ord*100):0)+'%）表現穩定。',
+        '• EH '+ehOrd+' 張、MG4 '+mg4Ord+' 張'+(ehOrd+mg4Ord<=2?'，銷量偏低，建議評估話術培訓或短期促銷。':'，銷售動能尚可。')
+      ]) +
+      card('var(--muted)','⚠️ 資料完整性說明',dq) +
+      card('var(--orange)','⚡ 行動建議',[
+        '• 優先處理 H 級滯留（'+staleH30+' 位），尤其逾 60 天（'+staleH60+' 位）需主管親自確認是否調整策略。',
+        '• A 級逾 60 天（'+staleA60+' 位）建議業務員重新評估熱度，必要時降級或關閉以維持管道資料品質。',
+        '• BO '+bo+' 張下月上旬優先排交車；'+hl(lowStore[0]+'展示中心','var(--orange)')+'（轉交率 '+lowStore[3]+'%）需改善。',
+        '• 本月訂單前三名：'+(top5.slice(0,3).map(function(e){return hl(e.name,'var(--accent)')+' ('+e.ord+'張)';}).join('、'))+'，持續維持動能。'+(zeroOrd.length>0?' 零訂單業務員（'+zeroOrd.map(function(e){return e.name;}).join('、')+'）需主管本週面談。':'')
+      ]) +
+      '</div>' +
+      '<div style="background:#111827;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--muted)">※ 本分析依 Dataverse 即時資料自動生成，數字與近期數據頁一致。每次切換至此頁籤時自動更新。</div>';
+
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);padding:20px">分析資料載入失敗：'+e.message+'</div>';
+  }
+}
+
+// 歷史累積
+// ════════════════════════════════════════
+async function loadHistoryData(force) {
+  if (historyLoaded && !force) return;
+  document.getElementById('histError').style.display = 'none';
+  try {
+    const hsf = histStoreFilter();
+    const STORES = ['八德展示中心','中壢展示中心','桃園展示中心'];
+    const FUNNEL = ['來店','試乘','預約','簽訂','領牌'];
+    const now = new Date();
+    const mLabels = [], mStarts = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      mLabels.push((d.getMonth()+1)+'月'); mStarts.push(d);
+    }
+
+    const results = await Promise.all([
+      dvCount(`cre39_sf_opportunityid ne null${hsf}`),
+      dvCount(`cre39_isclosed eq false${hsf}`),
+      dvCount(`cre39_iswon eq true${hsf}`),
+      dvCount(`cre39_isclosed eq true and cre39_iswon eq false${hsf}`),
+      ...FUNNEL.map(s => dvCount(`cre39_stagename eq '${s}'${hsf}`)),
+      ...mStarts.map(d => { const s=d.toISOString(), e=new Date(d.getFullYear(),d.getMonth()+1,1).toISOString(); return dvCount(`cre39_orderdate__c ge ${s} and cre39_orderdate__c lt ${e}${hsf}`); }),
+      ...mStarts.map(d => { const s=d.toISOString(), e=new Date(d.getFullYear(),d.getMonth()+1,1).toISOString(); return dvCount(`cre39_dmsdeliverydate__c ge ${s} and cre39_dmsdeliverydate__c lt ${e}${hsf}`); }),
+      ...STORES.flatMap(st => [
+        dvCount(`cre39_store__c eq '${st}'`),
+        dvCount(`cre39_iswon eq true and cre39_store__c eq '${st}'`),
+        dvCount(`cre39_isclosed eq false and cre39_store__c eq '${st}'`),
+      ]),
+    ]);
+
+    const [total, open, won, lost] = results;
+    const funnelCnts = results.slice(4, 9);
+    const mOrders    = results.slice(9, 21);
+    const mWons      = results.slice(21, 33);
+    const storeVals  = results.slice(33);
+
+    setVal('hist-total', total, 'blue');
+    setVal('hist-open',  open,  'purple');
+    setVal('hist-won',   won,   'green');
+    setVal('hist-lost',  lost,  'red');
+
+    // 漏斗
+    document.getElementById('funnelArea').innerHTML = FUNNEL.map((s,i) => {
+      if (!funnelCnts[i]) return '';
+      const max = Math.max(...funnelCnts, 1);
+      const pct = Math.round((funnelCnts[i]/max)*100);
+      const colors = ['#4f8ef7','#7c5cfc','#f97316','#22c55e','#06b6d4'];
+      return `<div class="funnel-row">
+        <div class="funnel-label">${s}</div>
+        <div class="funnel-bg"><div class="funnel-bar" style="width:${pct}%;background:${colors[i]}">${pct>10?funnelCnts[i].toLocaleString():''}</div></div>
+        <div class="funnel-cnt">${funnelCnts[i].toLocaleString()}</div></div>`;
+    }).join('');
+
+    // 月趨勢
+    const mCtx = document.getElementById('monthlyChart').getContext('2d');
+    if (monthlyChartInst) monthlyChartInst.destroy();
+    monthlyChartInst = new Chart(mCtx, {
+      type:'bar', data:{ labels:mLabels, datasets:[
+        {label:'訂單',data:mOrders,backgroundColor:'rgba(249,115,22,0.5)',borderColor:'#f97316',borderWidth:1},
+        {label:'成交',data:mWons,  backgroundColor:'rgba(34,197,94,0.5)', borderColor:'#22c55e',borderWidth:1},
+      ]},
+      options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+        scales:{x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2d3252'}},y:{ticks:{color:'#94a3b8',font:{size:11},precision:0},grid:{color:'#2d3252'},beginAtZero:true}}}
+    });
+
+    // 各所比較
+    const sCtx = document.getElementById('storeChart').getContext('2d');
+    if (storeChartInst) storeChartInst.destroy();
+    storeChartInst = new Chart(sCtx, {
+      type:'bar', data:{ labels:STORES, datasets:[
+        {label:'歷史累積',data:STORES.map((_,i)=>storeVals[i*3]),  backgroundColor:'rgba(79,142,247,0.5)',borderColor:'#4f8ef7',borderWidth:1},
+        {label:'成交',    data:STORES.map((_,i)=>storeVals[i*3+1]),backgroundColor:'rgba(34,197,94,0.5)', borderColor:'#22c55e',borderWidth:1},
+        {label:'進行中',  data:STORES.map((_,i)=>storeVals[i*3+2]),backgroundColor:'rgba(124,92,252,0.5)',borderColor:'#7c5cfc',borderWidth:1},
+      ]},
+      options:{responsive:true,indexAxis:'y',plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+        scales:{x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2d3252'}},y:{ticks:{color:'#e2e8f0',font:{size:11}},grid:{display:false}}}}
+    });
+
+    historyLoaded = true;
+  } catch(e) {
+    document.getElementById('histError').style.display = 'block';
+    document.getElementById('histError').textContent = '歷史資料載入失敗：' + e.message;
+  }
+}
+
+// ── 啟動 ──
+(function () {
+  const cs = document.createElement('script');
+  cs.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+  document.head.appendChild(cs);
+  const s = document.createElement('script');
+  s.src = 'https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js';
+  s.onload = () => initMsal().catch(e => {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = 'MSAL 初始化失敗：' + e.message;
+  });
+  s.onerror = () => {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = 'MSAL 載入失敗，請重新整理';
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

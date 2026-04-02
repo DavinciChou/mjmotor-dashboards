@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>銘勁汽車 · 營業數據面板 — 設計規劃說明書</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --accent: #3b82f6;
+    --accent2: #7c3aed;
+    --green: #059669;
+    --orange: #ea580c;
+    --red: #dc2626;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+
+  /* ── 頂部 Banner ── */
+  .hero {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #fff;
+    padding: 48px 32px 40px;
+    text-align: center;
+  }
+  .hero-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .hero-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, #f97316, #fb923c);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; color: #fff;
+  }
+  .hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .hero p { color: #94a3b8; font-size: 15px; }
+  .hero .badge { display: inline-block; background: rgba(59,130,246,0.2); color: #93c5fd; padding: 4px 14px; border-radius: 20px; font-size: 13px; margin-top: 12px; }
+
+  /* ── 導航 ── */
+  .toc {
+    max-width: 900px;
+    margin: -24px auto 0;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    position: relative;
+    z-index: 1;
+  }
+  .toc h2 { font-size: 16px; color: var(--muted); margin-bottom: 14px; font-weight: 600; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .toc-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--code-bg);
+    text-decoration: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  .toc-item:hover { background: #e0e7ff; }
+  .toc-num {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── 內容 ── */
+  .content { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  .section {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .section-num.purple { background: var(--accent2); }
+  .section-num.green { background: var(--green); }
+  .section-num.orange { background: var(--orange); }
+  .section-num.red { background: var(--red); }
+  .section h2 { font-size: 20px; font-weight: 700; }
+
+  p { margin-bottom: 14px; font-size: 15px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── 流程圖 ── */
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 28px 12px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    padding: 14px 20px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 130px;
+    position: relative;
+  }
+  .flow-box .sub { font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.7); margin-top: 4px; }
+  .flow-sf { background: linear-gradient(135deg, #1d4ed8, #3b82f6); color: #fff; }
+  .flow-dv { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+  .flow-gh { background: linear-gradient(135deg, #1e293b, #475569); color: #fff; }
+  .flow-user { background: linear-gradient(135deg, #059669, #34d399); color: #fff; }
+  .flow-arrow {
+    font-size: 22px;
+    color: var(--muted);
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── 架構層 ── */
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 20px 0;
+  }
+  .arch-layer {
+    display: flex;
+    align-items: stretch;
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 56px;
+  }
+  .arch-label {
+    width: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .arch-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 13px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .arch-tag {
+    background: rgba(255,255,255,0.7);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* ── 表格 ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  th {
+    background: var(--code-bg);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  /* ── 程式碼區 ── */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 18px 20px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 14px 0;
+  }
+  .code-block .comment { color: #6b7280; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #86efac; }
+  .code-block .func { color: #93c5fd; }
+  .code-block .num { color: #fbbf24; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    color: #be185d;
+  }
+
+  /* ── 版面示意 ── */
+  .layout-preview {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .lp-row { display: flex; gap: 8px; }
+  .lp-box {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--code-bg);
+    flex: 1;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .lp-box .lp-icon { font-size: 20px; margin-bottom: 4px; }
+  .lp-box.orange { border-color: #fb923c; background: #fff7ed; color: #c2410c; }
+  .lp-box.green { border-color: #34d399; background: #ecfdf5; color: #047857; }
+  .lp-box.yellow { border-color: #fbbf24; background: #fefce8; color: #a16207; }
+  .lp-box.teal { border-color: #2dd4bf; background: #f0fdfa; color: #0d9488; }
+  .lp-box.blue { border-color: #60a5fa; background: #eff6ff; color: #1d4ed8; }
+  .lp-box.purple { border-color: #a78bfa; background: #f5f3ff; color: #6d28d9; }
+
+  /* ── 提示框 ── */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: #eff6ff;
+    padding: 14px 18px;
+    border-radius: 0 10px 10px 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout.warn { border-color: #f59e0b; background: #fffbeb; }
+  .callout.success { border-color: var(--green); background: #ecfdf5; }
+
+  .callout-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  /* ── 概念卡 ── */
+  .concept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .concept-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .concept-card h4 {
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: var(--accent);
+  }
+  .concept-card p { font-size: 13px; color: var(--muted); margin-bottom: 0; }
+
+  /* ── 權限圖 ── */
+  .perm-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    flex-wrap: wrap;
+  }
+  .perm-box {
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: center;
+    min-width: 140px;
+  }
+  .perm-box .icon { font-size: 24px; margin-bottom: 6px; }
+  .perm-box .label { font-size: 13px; font-weight: 600; }
+  .perm-box .detail { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .perm-arrow { font-size: 20px; color: var(--accent); }
+
+  /* ── 頁尾 ── */
+  .footer {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  @media (max-width: 640px) {
+    .hero { padding: 32px 16px; }
+    .hero h1 { font-size: 22px; }
+    .toc, .section { padding: 20px; border-radius: 12px; }
+    .content { padding: 20px 12px 60px; }
+    .flow-diagram { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    .arch-layer { flex-direction: column; }
+    .arch-label { width: 100%; padding: 8px; }
+    .lp-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ 頂部 ══════════════════ -->
+<div class="hero">
+  <div class="hero-logo">
+    <div class="hero-icon">銘</div>
+    <span style="font-size:20px;font-weight:600">銘勁汽車</span>
+  </div>
+  <h1>營業數據面板 — 設計規劃說明書</h1>
+  <p>瞭解面板從何取得資料、如何顯示、背後的運作邏輯</p>
+  <div class="badge">版本 1.0 · 2026 年 3 月</div>
+</div>
+
+<!-- ══════════════════ 目錄 ══════════════════ -->
+<div class="toc">
+  <h2>目錄</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">1</span>面板是什麼？能做什麼？</a>
+    <a class="toc-item" href="#s2"><span class="toc-num">2</span>資料從哪裡來？</a>
+    <a class="toc-item" href="#s3"><span class="toc-num">3</span>系統架構全景</a>
+    <a class="toc-item" href="#s4"><span class="toc-num">4</span>版面結構與區塊</a>
+    <a class="toc-item" href="#s5"><span class="toc-num">5</span>欄位對照表</a>
+    <a class="toc-item" href="#s6"><span class="toc-num">6</span>查詢邏輯解說</a>
+    <a class="toc-item" href="#s7"><span class="toc-num">7</span>認證與權限</a>
+    <a class="toc-item" href="#s8"><span class="toc-num">8</span>部署與更新流程</a>
+  </div>
+</div>
+
+<!-- ══════════════════ 內容 ══════════════════ -->
+<div class="content">
+
+  <!-- § 1 ── 面板簡介 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2>面板是什麼？能做什麼？</h2>
+    </div>
+    <p>「營業數據面板」是一個<strong>網頁版即時報表</strong>，用瀏覽器打開就能看到銘勁汽車的銷售關鍵數據。它不需要安裝任何軟體，只要有公司帳號就能登入查看。</p>
+    <p>面板的目標是把散落在 Salesforce 裡的有望客戶資料，濃縮成一目瞭然的數字和圖表，讓主管和業務同仁能快速掌握：</p>
+
+    <div class="concept-grid">
+      <div class="concept-card">
+        <h4>本月業績</h4>
+        <p>本月訂單數、領牌數、上月殘留待交車的 BO 數量</p>
+      </div>
+      <div class="concept-card">
+        <h4>客戶動態</h4>
+        <p>本週/本月新增了多少有望客戶，和上期相比成長或衰退</p>
+      </div>
+      <div class="concept-card">
+        <h4>三店對比</h4>
+        <p>八德、中壢、桃園各展示中心的訂單、領牌與新增客戶</p>
+      </div>
+      <div class="concept-card">
+        <h4>商機分析</h4>
+        <p>帳齡分布、客戶來源、客戶熱度（H/A/B/C 級）、車款偏好</p>
+      </div>
+      <div class="concept-card">
+        <h4>趨勢追蹤</h4>
+        <p>近 8 週每週新增有望客戶的折線趨勢圖</p>
+      </div>
+      <div class="concept-card">
+        <h4>歷史累積</h4>
+        <p>全部有望客戶統計、銷售漏斗、近 12 個月訂單 vs 成交趨勢</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">網址</div>
+      面板部署在 GitHub Pages：<code>https://davincichou.github.io/mjmotor-dashboards/</code>
+    </div>
+  </div>
+
+  <!-- § 2 ── 資料來源 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num purple">2</div>
+      <h2>資料從哪裡來？</h2>
+    </div>
+    <p>面板顯示的每一個數字，最終源頭都是 <strong>Salesforce（SF）</strong> 裡的「有望客戶」（Opportunity）資料。但面板不是直接連到 Salesforce 取資料，中間還經過一道「搬運」流程。整體流程如下：</p>
+
+    <div class="flow-diagram">
+      <div class="flow-box flow-sf">
+        Salesforce<br>
+        <div class="sub">有望客戶（原始資料）</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-dv">
+        Dataverse<br>
+        <div class="sub">Power Apps 資料表（副本）</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-gh">
+        GitHub Pages<br>
+        <div class="sub">面板網頁（index.html）</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-user">
+        使用者瀏覽器<br>
+        <div class="sub">登入後即時顯示</div>
+      </div>
+    </div>
+
+    <p><strong>為什麼不直接從 Salesforce 讀？</strong></p>
+    <p>Salesforce 的 REST API 有嚴格的跨域（CORS）限制，從外部網頁無法直接呼叫。因此我們採用「中繼站」策略：透過 Power Apps 的 Dataflow，定時將 Salesforce 的有望客戶資料同步到 Microsoft Dataverse。面板再從 Dataverse 查詢資料，Dataverse 的 API 允許網頁端直接呼叫。</p>
+
+    <div class="callout warn">
+      <div class="callout-title">同步頻率</div>
+      Dataflow 設定為<strong>每小時自動同步</strong>，使用增量刷新（Incremental Refresh），只更新最近 7 天內有異動的資料。如果有更早的資料異動，需要手動觸發「Full Refresh」。
+    </div>
+  </div>
+
+  <!-- § 3 ── 系統架構 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num green">3</div>
+      <h2>系統架構全景</h2>
+    </div>
+    <p>整個系統分成四層，每一層各有專責：</p>
+
+    <div class="arch-layers">
+      <div class="arch-layer">
+        <div class="arch-label" style="background:#1d4ed8;">資料源</div>
+        <div class="arch-content" style="background:#eff6ff;">
+          <span class="arch-tag">Salesforce CRM</span>
+          <span style="font-size:12px;color:var(--muted)">有望客戶物件，約 23,000 筆紀錄</span>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-label" style="background:#7c3aed;">資料中繼</div>
+        <div class="arch-content" style="background:#f5f3ff;">
+          <span class="arch-tag">Power Apps Dataflow</span>
+          <span class="arch-tag">Dataverse 資料表</span>
+          <span style="font-size:12px;color:var(--muted)">每小時增量同步，Standard 資料表（非虛擬表）</span>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-label" style="background:#475569;">前端呈現</div>
+        <div class="arch-content" style="background:#f8fafc;">
+          <span class="arch-tag">GitHub Pages</span>
+          <span class="arch-tag">單一 HTML 檔</span>
+          <span class="arch-tag">MSAL.js v2 認證</span>
+          <span style="font-size:12px;color:var(--muted)">純前端，不需後端伺服器</span>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-label" style="background:#059669;">身份驗證</div>
+        <div class="arch-content" style="background:#ecfdf5;">
+          <span class="arch-tag">Azure AD / Entra ID</span>
+          <span class="arch-tag">Dataverse 安全角色</span>
+          <span style="font-size:12px;color:var(--muted)">每位同仁用自己的公司帳號登入，權限各自獨立</span>
+        </div>
+      </div>
+    </div>
+
+    <p>整個面板只有<strong>一個 HTML 檔案</strong>（index.html），裡面包含所有的畫面排版（HTML）、視覺樣式（CSS）和資料查詢邏輯（JavaScript）。這個設計的好處是部署和維護非常簡單——只需更新一個檔案。</p>
+
+    <div class="concept-grid">
+      <div class="concept-card">
+        <h4>Dataverse</h4>
+        <p>微軟的雲端資料庫，屬於 Power Platform 的一部分。可以把它想成雲端版的 Excel 大表格，但效能更好、支援 API 查詢。</p>
+      </div>
+      <div class="concept-card">
+        <h4>Dataflow</h4>
+        <p>Power Apps 裡的「資料搬運工」，負責定時把 Salesforce 的資料複製一份到 Dataverse。類似排程的 ETL（擷取-轉換-載入）。</p>
+      </div>
+      <div class="concept-card">
+        <h4>GitHub Pages</h4>
+        <p>GitHub 提供的免費靜態網站服務。把 HTML 檔案推送到 GitHub，它就會自動變成可瀏覽的網頁。</p>
+      </div>
+      <div class="concept-card">
+        <h4>MSAL.js</h4>
+        <p>微軟的登入套件（JavaScript 版），讓網頁可以使用公司的 Microsoft 帳號進行身份驗證，取得存取 Dataverse 的授權。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- § 4 ── 版面結構 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num orange">4</div>
+      <h2>版面結構與區塊</h2>
+    </div>
+    <p>面板採用深色（Dark Theme）設計，分為兩個分頁：「近期數據」和「歷史累積」。以下是各區塊的排列與用途：</p>
+
+    <h3 style="font-size:16px;margin:20px 0 12px;color:var(--accent)">分頁一：近期數據</h3>
+    <p>這是主要檢視頁面，打開面板時預設顯示此頁。頂部有月份選擇器和營業所篩選器。</p>
+
+    <div class="layout-preview">
+      <div class="lp-row">
+        <div class="lp-box" style="flex:3;background:#f0f9ff;border-color:#93c5fd;">
+          <div style="font-size:12px;color:var(--muted)">工具列</div>
+          月份選擇 ｜ 營業所篩選 ｜ 重新整理
+        </div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box orange"><div class="lp-icon">📋</div>本月訂單</div>
+        <div class="lp-box green"><div class="lp-icon">🚗</div>本月領牌</div>
+        <div class="lp-box yellow"><div class="lp-icon">⏳</div>上月殘留 BO</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box teal"><div class="lp-icon">📈</div>本週新增客戶<br><span style="font-size:11px;color:var(--muted)">vs 上週</span></div>
+        <div class="lp-box blue"><div class="lp-icon">📊</div>本月新增客戶<br><span style="font-size:11px;color:var(--muted)">vs 上月</span></div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box" style="flex:1"><div class="lp-icon">🏪</div>八德</div>
+        <div class="lp-box" style="flex:1"><div class="lp-icon">🏪</div>中壢</div>
+        <div class="lp-box" style="flex:1"><div class="lp-icon">🏪</div>桃園</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box teal"><div class="lp-icon">⏱</div>帳齡分布</div>
+        <div class="lp-box purple"><div class="lp-icon">📍</div>客戶來源</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box yellow"><div class="lp-icon">🔥</div>客戶熱度</div>
+        <div class="lp-box green"><div class="lp-icon">🚙</div>車款分布</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box" style="flex:3;border-color:#06b6d4;background:#f0fdfa;color:#0d9488;">
+          <div class="lp-icon">📉</div>每週新增有望客戶趨勢（近 8 週折線圖）
+        </div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box"><div class="lp-icon">👤</div>業務員本月成績表</div>
+        <div class="lp-box"><div class="lp-icon">📊</div>H/A 級業務員分布圖</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;margin:28px 0 12px;color:var(--accent2)">分頁二：歷史累積</h3>
+    <p>切換到此頁可檢視長期趨勢與全量統計。</p>
+
+    <div class="layout-preview">
+      <div class="lp-row">
+        <div class="lp-box blue"><div class="lp-icon">🗂</div>歷史總累積</div>
+        <div class="lp-box purple"><div class="lp-icon">🔄</div>進行中</div>
+        <div class="lp-box green"><div class="lp-icon">✅</div>歷史成交</div>
+        <div class="lp-box" style="border-color:#f87171;background:#fef2f2;color:#b91c1c;"><div class="lp-icon">❌</div>歷史流失</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box" style="flex:3;border-color:#a78bfa;background:#f5f3ff;color:#6d28d9;">
+          <div class="lp-icon">⬇</div>銷售漏斗（來店 → 試乘 → 預約 → 簽訂 → 領牌）
+        </div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box" style="flex:3"><div class="lp-icon">📊</div>月訂單 vs 成交趨勢（近 12 個月長條圖）</div>
+      </div>
+      <div class="lp-row">
+        <div class="lp-box" style="flex:3"><div class="lp-icon">🏪</div>各營業所累積比較（橫條圖）</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">商機分析的月份 Chips</div>
+      帳齡、來源、熱度、車款四張卡各自有獨立的月份選擇器（Chips），預設只選當月，可以多選（例如同時選 1月 + 2月 + 3月）。多選時，查詢會用 OR 條件合計所有月份的資料。
+    </div>
+  </div>
+
+  <!-- § 5 ── 欄位對照 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num red">5</div>
+      <h2>欄位對照表</h2>
+    </div>
+    <p>Salesforce 的欄位搬到 Dataverse 後，名稱會變成 Dataverse 的格式。面板程式裡用的都是 Dataverse 欄位名稱。以下是對照：</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>面板顯示</th>
+          <th>Dataverse 欄位</th>
+          <th>Salesforce 原始欄位</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>建立日期</td>
+          <td><code>cre39_createddate</code></td>
+          <td>CreatedDate</td>
+          <td>有望客戶在 SF 建立的日期</td>
+        </tr>
+        <tr>
+          <td>訂購日</td>
+          <td><code>cre39_orderdate__c</code></td>
+          <td>OrderDate__c</td>
+          <td>客戶下訂單的日期</td>
+        </tr>
+        <tr>
+          <td>領牌日</td>
+          <td><code>cre39_dmsdeliverydate__c</code></td>
+          <td>DMSDeliveryDate__c</td>
+          <td>開立發票日 = 領牌日</td>
+        </tr>
+        <tr>
+          <td>結案日</td>
+          <td><code>cre39_closedate</code></td>
+          <td>CloseDate</td>
+          <td>有望客戶結案的日期</td>
+        </tr>
+        <tr>
+          <td>是否成交</td>
+          <td><code>cre39_iswon</code></td>
+          <td>IsWon</td>
+          <td>true = 已成交</td>
+        </tr>
+        <tr>
+          <td>是否結案</td>
+          <td><code>cre39_isclosed</code></td>
+          <td>IsClosed</td>
+          <td>true = 已結案（成交或流失皆算）</td>
+        </tr>
+        <tr>
+          <td>階段</td>
+          <td><code>cre39_stagename</code></td>
+          <td>StageName</td>
+          <td>來店 / 試乘 / 預約 / 簽訂 / 領牌</td>
+        </tr>
+        <tr>
+          <td>客戶熱度</td>
+          <td><code>cre39_accountlevel__c</code></td>
+          <td>AccountLevel__c</td>
+          <td>H / A / B / C / D / E / F</td>
+        </tr>
+        <tr>
+          <td>客戶來源</td>
+          <td><code>cre39_leadsource</code></td>
+          <td>LeadSource</td>
+          <td>「經銷商」/ 代碼 1、2、5</td>
+        </tr>
+        <tr>
+          <td>車款</td>
+          <td><code>cre39_carcategory__c</code></td>
+          <td>CarCategory__c</td>
+          <td>HS / ZS / EH / MG4 / G5</td>
+        </tr>
+        <tr>
+          <td>展示中心</td>
+          <td><code>cre39_store__c</code></td>
+          <td>Store__c</td>
+          <td>八德 / 中壢 / 桃園展示中心</td>
+        </tr>
+        <tr>
+          <td>業務員 ID</td>
+          <td><code>cre39_ownerid</code></td>
+          <td>OwnerId</td>
+          <td>Salesforce User ID</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <div class="callout-title">欄位命名規則</div>
+      Dataverse 同步後的欄位統一以 <code>cre39_</code> 開頭。如果原本是自訂欄位（SF 裡以 <code>__c</code> 結尾），在 Dataverse 裡會變成 <code>cre39_xxx__c</code>。標準欄位則直接變成 <code>cre39_xxx</code>（全小寫）。
+    </div>
+  </div>
+
+  <!-- § 6 ── 查詢邏輯 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <h2>查詢邏輯解說</h2>
+    </div>
+    <p>面板透過 Dataverse 的 REST API 來計算各項數字。每次載入頁面時，會發出多筆 API 呼叫，同時（並行）查詢不同指標。以下用白話解釋每個數字的查詢邏輯：</p>
+
+    <h3 style="font-size:16px;margin:20px 0 10px;">本月業績三大卡</h3>
+    <table>
+      <thead>
+        <tr><th>指標</th><th>查詢邏輯（白話）</th><th>對應 Salesforce 報告</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>本月訂單</strong></td>
+          <td>「訂購日」落在本月的筆數</td>
+          <td>MJ面板A</td>
+        </tr>
+        <tr>
+          <td><strong>本月領牌</strong></td>
+          <td>「開立發票日」落在本月的筆數（不需判斷是否成交）</td>
+          <td>MJ面板B（只看開立發票日，不加 iswon 條件）</td>
+        </tr>
+        <tr>
+          <td><strong>上月殘留 BO</strong></td>
+          <td>訂購日在本月之前、有下過訂、但尚未結案的筆數</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>以下是「本月訂單」的實際查詢範例，幫助理解語法：</p>
+    <div class="code-block">
+<span class="comment">// 查詢本月訂單數量</span>
+<span class="comment">// start = 本月1日, end = 下月1日（例如 2026-03-01 到 2026-04-01）</span>
+<span class="comment">// sf = 營業所篩選條件（若選「全部」則為空字串）</span>
+
+<span class="func">dvCount</span>(<span class="string">`cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}`</span>)
+
+<span class="comment">// 翻譯：計算「訂購日 ≥ 本月1日 且 訂購日 < 下月1日」的筆數</span>
+<span class="comment">// ge = greater than or equal（大於等於）</span>
+<span class="comment">// lt = less than（小於）</span>
+    </div>
+
+    <h3 style="font-size:16px;margin:24px 0 10px;">客戶數據</h3>
+    <table>
+      <thead>
+        <tr><th>指標</th><th>查詢邏輯</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>本週新增</strong></td>
+          <td>「建立日期」落在本週一到明天的筆數（用明天零點做上限，避免查到未來日期）</td>
+        </tr>
+        <tr>
+          <td><strong>本月新增</strong></td>
+          <td>「建立日期」落在本月的筆數</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>兩者都會和前一期（上週 / 上月）比較，算出成長或衰退百分比。</p>
+
+    <h3 style="font-size:16px;margin:24px 0 10px;">商機分析四張卡</h3>
+    <p>每張卡都有月份 Chips 可以選擇查看範圍。多選月份時會用 OR 條件合計：</p>
+    <div class="code-block">
+<span class="comment">// 多月份查詢 — 例如同時選 1月 + 2月</span>
+<span class="string">'(' +</span>
+  <span class="string">'(cre39_createddate ge 2026-01-01 and cre39_createddate lt 2026-02-01)'</span> +
+  <span class="string">' or '</span> +
+  <span class="string">'(cre39_createddate ge 2026-02-01 and cre39_createddate lt 2026-03-01)'</span> +
+<span class="string">')'</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>卡片</th><th>分組依據</th><th>篩選條件</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>帳齡分布</strong></td>
+          <td>第1週 / 第2週 / … / 9-12週 / 超過12週</td>
+          <td>未結案（isclosed = false），依建立日期計算距今週數</td>
+        </tr>
+        <tr>
+          <td><strong>客戶來源</strong></td>
+          <td>經銷商 / 代碼2 / 代碼5 / 代碼1</td>
+          <td>依 leadsource 欄位分組</td>
+        </tr>
+        <tr>
+          <td><strong>客戶熱度</strong></td>
+          <td>H / A / B / C / D / E / F 級</td>
+          <td>未結案，依 accountlevel 欄位分組</td>
+        </tr>
+        <tr>
+          <td><strong>車款分布</strong></td>
+          <td>HS / ZS / EH / MG4 / G5 / 未填</td>
+          <td>依 carcategory 欄位分組</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;margin:24px 0 10px;">每週趨勢圖</h3>
+    <p>取近 8 週的每週新增客戶數，每週定義為「週一至週日」。當週的結束時間以「明天零點」為上限，避免查到未來日期。折線圖的 X 軸 label 顯示的是該週的週日日期。</p>
+
+    <h3 style="font-size:16px;margin:24px 0 10px;">核心查詢函數</h3>
+    <p>面板裡有兩個最核心的函數：</p>
+    <div class="code-block">
+<span class="comment">// dvFetch — 向 Dataverse API 發送查詢請求</span>
+<span class="comment">// 自動帶入登入者的 token，如果權限不足會顯示紅色警告橫幅</span>
+<span class="keyword">async function</span> <span class="func">dvFetch</span>(query) { ... }
+
+<span class="comment">// dvCount — 計算符合條件的筆數</span>
+<span class="comment">// 使用 OData $apply=filter(...)/aggregate($count as cnt) 語法</span>
+<span class="comment">// 返回一個數字（count）</span>
+<span class="keyword">function</span> <span class="func">dvCount</span>(filter) {
+  <span class="keyword">return</span> <span class="func">dvFetch</span>(
+    <span class="string">`cre39_sf_opportunities?$apply=filter(${filter})/aggregate($count as cnt)`</span>
+  ).<span class="func">then</span>(d => d.value?.[<span class="num">0</span>]?.cnt ?? <span class="num">0</span>);
+}
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">OData 查詢語法速查</div>
+      <table style="margin:8px 0 0;font-size:12px">
+        <tr><td><code>ge</code></td><td>大於等於（≥）</td></tr>
+        <tr><td><code>lt</code></td><td>小於（＜）</td></tr>
+        <tr><td><code>eq</code></td><td>等於（＝）</td></tr>
+        <tr><td><code>ne</code></td><td>不等於（≠）</td></tr>
+        <tr><td><code>and</code></td><td>且</td></tr>
+        <tr><td><code>or</code></td><td>或</td></tr>
+        <tr><td><code>$apply=filter(...)/aggregate($count as cnt)</code></td><td>篩選後計算筆數</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- § 7 ── 認證與權限 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num purple">7</div>
+      <h2>認證與權限</h2>
+    </div>
+    <p>面板的安全機制基於 Microsoft 的身份驗證系統（Azure AD / Entra ID），搭配 Dataverse 的安全角色。每位使用者需要具備兩項條件才能正常使用：</p>
+
+    <div class="perm-flow">
+      <div class="perm-box">
+        <div class="icon">🔑</div>
+        <div class="label">Microsoft 帳號</div>
+        <div class="detail">銘勁公司帳號<br>xxx@mjmotor.com.tw</div>
+      </div>
+      <div class="perm-arrow">＋</div>
+      <div class="perm-box">
+        <div class="icon">🛡</div>
+        <div class="label">Dataverse 安全角色</div>
+        <div class="detail">營業數據面板 - 讀取者<br>（Organization 層級 Read）</div>
+      </div>
+      <div class="perm-arrow">＝</div>
+      <div class="perm-box" style="border-color:var(--green);">
+        <div class="icon">✅</div>
+        <div class="label">可以看到數據</div>
+        <div class="detail">面板正常顯示所有數字</div>
+      </div>
+    </div>
+
+    <p><strong>運作原理：</strong>使用者點擊「登入」按鈕後，MSAL.js 會引導到微軟的登入頁面。登入成功後，瀏覽器會拿到一個 Access Token（存取權杖），之後每次向 Dataverse 查詢資料都會帶上這個 Token。Dataverse 收到 Token 後會檢查「這個人有沒有讀取 cre39_sf_opportunities 資料表的權限」，有的話就回傳資料，沒有的話回傳 403 錯誤。</p>
+
+    <p><strong>如果同仁看到面板全部是 0 或紅色錯誤訊息：</strong>表示該帳號缺少 Dataverse 安全角色。管理員需要到 Power Platform 管理中心，將「營業數據面板 - 讀取者」角色指派給該使用者。</p>
+
+    <div class="callout success">
+      <div class="callout-title">安全角色管理路徑</div>
+      Power Platform 管理中心 → 環境 → 銘勁汽車（default）→ 設定 → 使用者 → 搜尋使用者 → 管理角色 → 勾選「營業數據面板 - 讀取者」→ 儲存
+    </div>
+
+    <h3 style="font-size:16px;margin:20px 0 10px;">關鍵設定參數</h3>
+    <table>
+      <thead><tr><th>參數</th><th>值</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td>TENANT_ID</td><td><code>6cfd6e7d-...</code></td><td>銘勁的 Azure AD 租用戶識別碼</td></tr>
+        <tr><td>CLIENT_ID</td><td><code>d0527b95-...</code></td><td>面板在 Azure AD 註冊的應用程式 ID</td></tr>
+        <tr><td>DV_BASE</td><td><code>https://mjmotor.crm5.dynamics.com</code></td><td>Dataverse 環境的網址</td></tr>
+        <tr><td>ENTITY</td><td><code>cre39_sf_opportunities</code></td><td>要查詢的 Dataverse 資料表名稱</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- § 8 ── 部署與更新 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num green">8</div>
+      <h2>部署與更新流程</h2>
+    </div>
+    <p>面板的原始碼托管在 GitHub 上，修改後推送到 GitHub 就會自動更新網頁。流程如下：</p>
+
+    <div class="flow-diagram">
+      <div class="flow-box" style="background:linear-gradient(135deg,#475569,#64748b);color:#fff;">
+        本機修改<br>
+        <div class="sub">編輯 index.html</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="background:linear-gradient(135deg,#1e293b,#334155);color:#fff;">
+        Git Push<br>
+        <div class="sub">推送到 GitHub</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;">
+        自動部署<br>
+        <div class="sub">GitHub Pages 更新</div>
+      </div>
+    </div>
+
+    <p><strong>Git 推送指令：</strong>由於檔案存放路徑包含中文（OneDrive 資料夾），推送時使用短路徑格式的 .bat 批次檔執行 <code>git push origin master:main</code>（本機分支為 master，遠端為 main）。</p>
+
+    <p><strong>修改面板的步驟：</strong></p>
+    <div style="margin:12px 0;padding:16px;background:var(--code-bg);border-radius:10px;font-size:14px;">
+      <strong>1.</strong> 開啟 index.html 進行修改<br>
+      <strong>2.</strong> 在本機瀏覽器開啟檔案預覽效果（需登入才能看到資料）<br>
+      <strong>3.</strong> 確認無誤後執行 git push 推送<br>
+      <strong>4.</strong> 等待 1-2 分鐘，GitHub Pages 自動部署完成
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-title">注意事項</div>
+      面板是單一 HTML 檔案，所有 CSS、HTML、JavaScript 都在同一個檔案裡。修改時要小心不要破壞 HTML 標籤的配對（例如 <code>&lt;div&gt;</code> 和 <code>&lt;/div&gt;</code> 要成對）。建議修改前先備份一份。
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════ 頁尾 ══════════════════ -->
+<div class="footer">
+  銘勁汽車 · 營業數據面板設計規劃說明書<br>
+  文件版本 1.0 ｜ 建立日期：2026 年 3 月 31 日
+</div>
+
+</body>
+</html>
