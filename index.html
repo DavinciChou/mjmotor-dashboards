@@ -1204,131 +1204,182 @@ async function loadInsightData() {
 // 歷史累積
 // ════════════════════════════════════════
 // ══ 跟進分析頁 ══
-let followLoaded = false;
+const FOLLOW_NEW_MIN = 5;
+
 async function loadFollowData() {
   const el = document.getElementById('followContent');
   el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:14px">載入中…</div>';
-
   try {
     const tok = await getToken();
     const store = document.getElementById('storeSelect')?.value || '';
     const sf = store ? ` and cre39_store__c eq '${store}'` : '';
-
-    // 近4週未結案客戶（對齊帳齡分析）
-    const w4ago = new Date(Date.now() - 28*86400000).toISOString().split('T')[0];
-    const d7    = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
-    const d14   = new Date(Date.now() - 14*86400000).toISOString().split('T')[0];
+    const now = new Date();
+    const w4ago      = new Date(now - 28*86400000).toISOString().split('T')[0];
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const baseFilter = `cre39_isclosed eq false and cre39_createddate ge ${w4ago}${sf}`;
-
-    // 取所有記錄（含 ownerid + lastactivitydate）
     const [recs, uData] = await Promise.all([
-      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c&$filter=${baseFilter}&$top=2000`, tok),
-      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`, {silent:true}).catch(() => ({value:[]}))
+      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate&$filter=${baseFilter}&$top=2000`, tok),
+      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`,{silent:true}).catch(()=>({value:[]}))
     ]);
-
-    // userMap
     const userMap = {};
-    (uData.value||[]).forEach(u => { if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name; });
-
-    const rows = recs.value || [];
-    const today = Date.now();
-
-    // 分類每筆
-    const classify = (r) => {
-      const lad = r.cre39_lastactivitydate;
-      if (!lad) return 'never';
-      const diff = Math.floor((today - new Date(lad).getTime()) / 86400000);
-      if (diff <= 7) return 'ok';
-      if (diff <= 14) return 'warn';
-      return 'crit';
-    };
-
-    // 整體統計
-    const total = rows.length;
-    let ok=0, warn=0, crit=0, never=0;
-    rows.forEach(r => { const c=classify(r); if(c==='ok')ok++; else if(c==='warn')warn++; else if(c==='crit')crit++; else never++; });
-    const compRate = total > 0 ? Math.round(ok/total*100) : 0;
-    const compColor = compRate>=80?'var(--green)':compRate>=60?'var(--orange)':'var(--red)';
-
-    // 業務員分組
+    (uData.value||[]).forEach(u=>{ if(u.cre39_externalprimarykey&&u.cre39_name) userMap[u.cre39_externalprimarykey]=u.cre39_name; });
+    const rows = recs.value||[];
+    const todayTs = now.getTime();
+    const getDays = lad => lad ? Math.floor((todayTs-new Date(lad).getTime())/86400000) : null;
+    const classify = d => d===null?'never':d<=7?'ok':d<=14?'warn':'crit';
     const bySales = {};
     rows.forEach(r => {
       const name = userMap[r.cre39_ownerid] || r.cre39_ownerid || '未知';
-      if (!bySales[name]) bySales[name] = {ok:0,warn:0,crit:0,never:0,total:0};
-      bySales[name].total++;
-      const c = classify(r);
-      bySales[name][c]++;
+      if (!bySales[name]) bySales[name]={name,custs:[],ok:0,warn:0,crit:0,never:0,newMonth:0};
+      const days=getDays(r.cre39_lastactivitydate), cls=classify(days);
+      const isNew = r.cre39_createddate >= monthStart;
+      bySales[name].custs.push({oppName:r.cre39_name||'—',level:r.cre39_accountlevel__c||'?',store:(r.cre39_store__c||'').replace('展示中心',''),days,cls,isNew,lastActivityDate:r.cre39_lastactivitydate,createdDate:r.cre39_createddate});
+      bySales[name][cls]++;
+      if(isNew) bySales[name].newMonth++;
     });
-
-    // 排序：合規率由低到高
-    const salesArr = Object.entries(bySales).sort((a,b) => (a[1].ok/a[1].total) - (b[1].ok/b[1].total));
-
-    // HTML helpers
-    const hl = (v,c) => `<span style="color:${c};font-weight:700">${v}</span>`;
-    const card = (borderColor, title, body) =>
-      `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;border-top:3px solid ${borderColor}">` +
-      `<div style="font-size:13px;font-weight:600;margin-bottom:14px">${title}</div>${body}</div>`;
-
-    // ── KPI 三卡 ──
-    const kpiGrid = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">` +
-      [`<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:${compColor}">${compRate}%</div><div style="font-size:11px;color:var(--muted)">整體合規率（≤7天）</div></div>`,
-       `<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--orange)">${warn}</div><div style="font-size:11px;color:var(--muted)">8-14天逾期</div></div>`,
-       `<div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--red)">${crit+never}</div><div style="font-size:11px;color:var(--muted)">14天以上（含從未聯繫）</div></div>`
-      ].join('') + '</div>';
-
-    // ── 摘要說明 ──
-    const summary = `<div style="background:#0f1f2f;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.8">` +
-      `近4週進行中客戶共 ${hl(total,'var(--text)')} 筆　` +
-      `${hl(ok+'筆','var(--green)')} 7天內已聯繫　` +
-      `${hl(warn+'筆','var(--orange)')} 逾期8-14天　` +
-      `${hl(crit+'筆','var(--red)')} 逾14天　` +
-      `${never>0?hl(never+'筆從未聯繫','var(--red)'):''}` +
-    `</div>`;
-
-    // ── 業務員合規表 ──
-    const salesRows = salesArr.map(([name, s]) => {
-      const rate = Math.round(s.ok/s.total*100);
-      const rc = rate>=80?'var(--green)':rate>=60?'var(--orange)':'var(--red)';
-      const barW = rate;
-      return `<tr>
-        <td style="font-weight:600;padding:8px">${name}</td>
-        <td style="padding:8px;color:var(--muted)">${s.total}</td>
-        <td style="padding:8px;color:var(--green)">${s.ok}</td>
-        <td style="padding:8px;color:var(--orange)">${s.warn||'—'}</td>
-        <td style="padding:8px;color:var(--red)">${(s.crit+s.never)||'—'}</td>
-        <td style="padding:8px;color:${rc};font-weight:700">${rate}%</td>
-        <td style="padding:8px">
-          <div style="background:#1e2130;border-radius:4px;height:6px;width:80px">
-            <div style="width:${barW}%;height:6px;border-radius:4px;background:${rc}"></div>
-          </div>
-        </td>
+    const salesArr = Object.values(bySales).sort((a,b)=>{
+      const ra=a.ok/(a.ok+a.warn+a.crit+a.never||1), rb=b.ok/(b.ok+b.warn+b.crit+b.never||1);
+      return ra-rb;
+    });
+    const total=rows.length;
+    const totalOk=salesArr.reduce((s,x)=>s+x.ok,0);
+    const totalWarn=salesArr.reduce((s,x)=>s+x.warn,0);
+    const totalCrit=salesArr.reduce((s,x)=>s+x.crit+x.never,0);
+    const compRate=total>0?Math.round(totalOk/total*100):0;
+    const compColor=compRate>=80?'var(--green)':compRate>=60?'var(--orange)':'var(--red)';
+    const kpiGrid=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:26px;font-weight:800;color:${compColor}">${compRate}%</div><div style="font-size:11px;color:var(--muted)">整體合規率（≤7天）</div></div>
+      <div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--orange)">${totalWarn}</div><div style="font-size:11px;color:var(--muted)">8-14天逾期</div></div>
+      <div style="background:#12151f;border-radius:10px;padding:14px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--red)">${totalCrit}</div><div style="font-size:11px;color:var(--muted)">14天以上（含從未聯繫）</div></div>
+    </div>`;
+    const salesRows=salesArr.map(s=>{
+      const st=s.ok+s.warn+s.crit+s.never, rate=st>0?Math.round(s.ok/st*100):0;
+      const rc=rate>=80?'var(--green)':rate>=60?'var(--orange)':'var(--red)';
+      const low=s.newMonth<FOLLOW_NEW_MIN;
+      const sid='frow_'+s.name.replace(/[^a-zA-Z0-9]/g,'_');
+      const nameEsc=s.name.replace(/'/g,'\\u0027');
+      return `<tr id="${sid}" style="cursor:pointer;border-bottom:1px solid #1e2130" onclick="openFollowDrawer('${nameEsc}')">
+        <td style="padding:10px;font-weight:600">${s.name}${low?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:#3b1f0044;color:var(--yellow);border:1px solid #92400e44;margin-left:6px">⚠ 新客源</span>':''}</td>
+        <td style="padding:10px;color:var(--muted)">${st}</td>
+        <td style="padding:10px;color:${low?'var(--yellow)':'var(--green)'};font-weight:${low?700:400}">${s.newMonth}${low?' ↓':''}</td>
+        <td style="padding:10px;color:var(--green)">${s.ok}</td>
+        <td style="padding:10px;color:var(--orange)">${s.warn||'—'}</td>
+        <td style="padding:10px;color:var(--red)">${(s.crit+s.never)||'—'}</td>
+        <td style="padding:10px;color:${rc};font-weight:700">${rate}%</td>
+        <td style="padding:10px"><div style="background:#1e2130;border-radius:4px;height:6px;width:80px;display:inline-block"><div style="width:${rate}%;height:6px;border-radius:4px;background:${rc}"></div></div><span style="font-size:11px;color:var(--muted);margin-left:6px">›</span></td>
       </tr>`;
     }).join('');
-
-    const salesTable = `<div style="margin-bottom:12px;display:flex;gap:16px;font-size:12px;color:var(--muted)">
-      <span>🟢 合規（≤7天）</span><span>🟠 逾期（8-14天）</span><span>🔴 嚴重（>14天＋從未）</span>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="color:var(--muted);font-size:12px">
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">業務員</th>
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">負責客戶</th>
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🟢合規</th>
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🟠8-14天</th>
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">🔴>14天</th>
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">合規率</th>
-        <th style="padding:6px 8px;border-bottom:1px solid var(--border)"></th>
-      </tr></thead>
-      <tbody>${salesRows}</tbody>
-    </table>`;
-
-    el.innerHTML = '<div style="max-width:900px">' +
-      card('var(--teal)', '📞 週聯繫合規追蹤 <span style="font-size:12px;color:var(--muted);font-weight:400">（以 SF LastActivityDate 計算，近4週進行中客戶）</span>',
-        kpiGrid + summary + salesTable) +
-      '</div>';
-
+    el.innerHTML=`<div style="display:flex;height:calc(100vh - 180px)">
+      <div style="flex:1;overflow-y:auto">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;border-top:3px solid var(--teal)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px">📞 週聯繫合規追蹤 <span style="font-size:12px;color:var(--muted);font-weight:400">（以 SF LastActivityDate，近4週進行中客戶）</span></div>
+          ${kpiGrid}
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">👆 點擊業務員列展開明細　<span style="color:var(--yellow)">⚠ 新客源</span> = 本月新開發偏低（目標 ${FOLLOW_NEW_MIN} 位）</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">
+              <th style="padding:6px 10px;text-align:left">業務員</th><th style="padding:6px 10px;text-align:left">客戶數</th>
+              <th style="padding:6px 10px;text-align:left">本月新增</th><th style="padding:6px 10px;text-align:left">🟢合規</th>
+              <th style="padding:6px 10px;text-align:left">🟠8-14天</th><th style="padding:6px 10px;text-align:left">🔴>14天</th>
+              <th style="padding:6px 10px;text-align:left">合規率</th><th style="padding:6px 10px"></th>
+            </tr></thead>
+            <tbody>${salesRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div id="followDrawer" style="width:0;overflow:hidden;background:var(--surface);border-left:1px solid var(--border);transition:width .3s ease;flex-shrink:0">
+        <div id="followDrawerInner" style="width:460px;padding:20px;height:100%;overflow-y:auto"></div>
+      </div>
+    </div>`;
+    window._followSalesMap={};
+    salesArr.forEach(s=>{ window._followSalesMap[s.name]=s; });
   } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);padding:20px">載入失敗：${e.message}</div>`;
+    el.innerHTML=`<div style="color:var(--red);padding:20px">載入失敗：${e.message}</div>`;
   }
+}
+
+function openFollowDrawer(name) {
+  const drawer=document.getElementById('followDrawer');
+  if(!drawer) return;
+  document.querySelectorAll('[id^="frow_"]').forEach(r=>{r.style.background='';r.style.borderLeft='';});
+  const sid='frow_'+name.replace(/[^a-zA-Z0-9]/g,'_');
+  const row=document.getElementById(sid);
+  if(drawer._open===name){ drawer.style.width='0'; drawer._open=null; return; }
+  drawer._open=name;
+  if(row){row.style.background='#1e2d4a';row.style.borderLeft='3px solid var(--teal)';}
+  renderFollowDrawer(name,'all');
+  drawer.style.width='460px';
+}
+
+function renderFollowDrawer(name,filter) {
+  const s=window._followSalesMap?.[name]; if(!s) return;
+  const st=s.ok+s.warn+s.crit+s.never, rate=st>0?Math.round(s.ok/st*100):0;
+  const rc=rate>=80?'var(--green)':rate>=60?'var(--orange)':'var(--red)';
+  const low=s.newMonth<FOLLOW_NEW_MIN;
+  const leadsBarPct=Math.min(100,Math.round(s.newMonth/FOLLOW_NEW_MIN*100));
+  const leadsBanner=low
+    ?`<div style="background:#3b1f0033;border:1px solid #92400e66;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;line-height:1.6">
+        <div style="font-size:18px;flex-shrink:0;margin-top:1px">⚠️</div>
+        <div style="flex:1;font-size:13px">
+          <div style="font-weight:700;color:var(--yellow);margin-bottom:4px">本月新開發客戶偏低</div>
+          <div style="font-size:12px;color:var(--muted)">本月新增 <strong style="color:var(--yellow)">${s.newMonth} 位</strong>，建議每月至少 ${FOLLOW_NEW_MIN} 位。<br>請督促 ${name} 加強開發新客源。</div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--muted);flex-shrink:0">進度</span>
+            <div style="background:#1e2130;border-radius:4px;height:8px;flex:1"><div style="width:${leadsBarPct}%;height:8px;border-radius:4px;background:var(--yellow)"></div></div>
+            <span style="font-size:11px;color:var(--yellow);font-weight:700">${s.newMonth}/${FOLLOW_NEW_MIN}</span>
+          </div>
+        </div>
+      </div>`
+    :`<div style="background:#14532d22;border:1px solid #16653344;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center">
+        <span style="font-size:16px">✅</span>
+        <span style="font-size:12px">本月新增 <strong style="color:var(--green)">${s.newMonth} 位</strong>，已達目標（${FOLLOW_NEW_MIN} 位以上）</span>
+        <div style="background:#1e2130;border-radius:4px;height:6px;flex:1;margin-left:4px"><div style="width:${leadsBarPct}%;height:6px;border-radius:4px;background:var(--green)"></div></div>
+      </div>`;
+  const filtered=filter==='all'?s.custs:filter==='ok'?s.custs.filter(c=>c.cls==='ok'):filter==='warn'?s.custs.filter(c=>c.cls==='warn'):s.custs.filter(c=>c.cls==='crit'||c.cls==='never');
+  const ord={never:0,crit:1,warn:2,ok:3};
+  filtered.sort((a,b)=>ord[a.cls]-ord[b.cls]);
+  const nameEsc=name.replace(/'/g,'\\u0027');
+  const chip=(f,lbl)=>`<span onclick="renderFollowDrawer('${nameEsc}','${f}')" style="padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid ${filter===f?'var(--teal)':'var(--border)'};background:${filter===f?'var(--teal)':'#12151f'};color:${filter===f?'#fff':'var(--muted)'}">${lbl}</span>`;
+  const custHtml=filtered.map(c=>{
+    const border=c.cls==='ok'?'var(--green)':c.cls==='warn'?'var(--orange)':c.cls==='crit'?'var(--red)':'var(--muted)';
+    const daysTxt=c.days===null?'從未聯繫':`${c.days} 天前`;
+    const daysColor=c.cls==='ok'?'var(--green)':c.cls==='warn'?'var(--orange)':c.cls==='crit'?'var(--red)':'var(--muted)';
+    const lc=c.level==='H'?'var(--red)':c.level==='A'?'var(--orange)':c.level==='B'?'var(--green)':'var(--muted)';
+    const dateStr=c.lastActivityDate?c.lastActivityDate.split('T')[0]:'—';
+    const creStr=c.createdDate?c.createdDate.substring(2,10).replace(/-/g,'/'):'—';
+    return `<div style="background:#12151f;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid ${border}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600;font-size:13px">${c.oppName}${c.isNew?' <span style="font-size:10px;background:#1e3a5f44;color:#60a5fa;padding:1px 6px;border-radius:8px;font-weight:700">本月新增</span>':''}</span>
+        <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:${lc}22;color:${lc}">${c.level}級</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+        <span>${c.store}</span><span>建立：${creStr}</span>
+        <span style="color:${daysColor};font-weight:700">最後聯繫：${daysTxt}</span>
+      </div>
+      ${c.lastActivityDate?`<div style="font-size:11px;color:var(--muted)">SF 活動日：${dateStr}</div>`:''}
+    </div>`;
+  }).join('');
+  document.getElementById('followDrawerInner').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:16px;font-weight:700">${name}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">負責 ${st} 位 ｜ 合規率 <span style="color:${rc};font-weight:700">${rate}%</span></div>
+      </div>
+      <button onclick="closeFollowDrawer()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px">✕</button>
+    </div>
+    ${leadsBanner}
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      ${chip('all','全部 '+st)}${chip('ok','🟢 合規 '+s.ok)}${chip('warn','🟠 逾期 '+s.warn)}${chip('crit','🔴 嚴重 '+(s.crit+s.never))}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">嚴重逾期優先顯示 ↓</div>
+    ${custHtml||'<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">此條件下無客戶</div>'}
+    <div style="margin-top:12px;padding:10px 12px;background:#1e293b;border-radius:8px;font-size:11px;color:var(--muted)">
+      ℹ️ 顯示 SF LastActivityDate。如需查看詳細記錄，請至 Salesforce 開啟該有望客戶。
+    </div>`;
+}
+
+function closeFollowDrawer() {
+  const d=document.getElementById('followDrawer');
+  if(d){d.style.width='0';d._open=null;}
+  document.querySelectorAll('[id^="frow_"]').forEach(r=>{r.style.background='';r.style.borderLeft='';});
 }
 
 async function loadHistoryData(force) {
