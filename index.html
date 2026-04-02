@@ -1005,11 +1005,50 @@ async function loadInsightData() {
       dvFetch('cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300', {silent:true}).catch(function(){return {value:[]};})
     ]);
 
+    // ── 帳齡跟進分析：近4週各週段未評級數 + 業務員明細 ──
+    const { w7: aw7, w14: aw14, w21: aw21, w28: aw28 } = ageBounds();
+    const [ageW1NoLv, ageW2NoLv, ageW3NoLv, ageW4NoLv,
+            ageW1Tot,  ageW2Tot,  ageW3Tot,  ageW4Tot,
+            ageDetailData] = await Promise.all([
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw7} and cre39_accountlevel__c eq null`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw14} and cre39_createddate lt ${aw7} and cre39_accountlevel__c eq null`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw21} and cre39_createddate lt ${aw14} and cre39_accountlevel__c eq null`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw28} and cre39_createddate lt ${aw21} and cre39_accountlevel__c eq null`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw7}`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw14} and cre39_createddate lt ${aw7}`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw21} and cre39_createddate lt ${aw14}`),
+      dvCount(`cre39_isclosed eq false and cre39_createddate ge ${aw28} and cre39_createddate lt ${aw21}`),
+      dvFetch(`${ENTITY}?$filter=cre39_isclosed eq false and cre39_createddate ge ${aw28}&$select=cre39_ownerid,cre39_createddate,cre39_accountlevel__c&$top=2000`),
+    ]);
+    const ageTotalNoLv = ageW1NoLv + ageW2NoLv + ageW3NoLv + ageW4NoLv;
+    const ageTotalAll  = ageW1Tot  + ageW2Tot  + ageW3Tot  + ageW4Tot;
+    const ageNoLvPct   = ageTotalAll > 0 ? Math.round(ageTotalNoLv / ageTotalAll * 100) : 0;
+
     // 建立 SF User ID → 姓名 對照表
     const userMap = {};
     (uData.value||[]).forEach(function(u) {
       if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name;
     });
+
+    // ── 業務員帳齡分析（近4週進行中，按 ownerid 分組）──
+    const nowTs = Date.now();
+    const consultantAge = {};
+    (ageDetailData.value||[]).forEach(function(r) {
+      const id   = r.cre39_ownerid || '未知';
+      const name = userMap[id] || id;
+      if (!consultantAge[id]) consultantAge[id] = {name:name, w1:0, w2:0, w3:0, w4:0, noLevel:0, total:0};
+      const ca = consultantAge[id];
+      const days = (nowTs - new Date(r.cre39_createddate).getTime()) / 86400000;
+      if      (days <  7) ca.w1++;
+      else if (days < 14) ca.w2++;
+      else if (days < 21) ca.w3++;
+      else                ca.w4++;
+      if (!r.cre39_accountlevel__c) ca.noLevel++;
+      ca.total++;
+    });
+    const consultantAgeList = Object.values(consultantAge)
+      .filter(function(c){return c.total > 0;})
+      .sort(function(a,b){return b.noLevel - a.noLevel;});
 
     // 建立業務員統計
     const sby = {};
@@ -1074,7 +1113,8 @@ async function loadInsightData() {
       card('var(--red)','🔔 客戶跟進警示',[
         '• '+hl('H 級滯留','var(--red)')+'：'+staleH30+' 位已建立逾 30 天仍未下訂'+(staleH60>0?'，其中 '+hl(staleH60+' 位超過 60 天','var(--red)')+'，流失風險高。':'，建議本週跟進。'),
         '• '+hl('A 級滯留','var(--orange)')+'：'+staleA30+' 位逾 30 天未下訂'+(staleA60>0?'，其中 '+hl(staleA60+' 位超過 60 天','var(--orange)')+'，熱度持續下降中。':'。'),
-        '• 本月新增 H 級 '+hCount+' 位、A 級 '+aCount+' 位，建立後 2 週內須完成強力跟進，避免滑入滯留清單。'
+        '• 本月新增 H 級 '+hCount+' 位、A 級 '+aCount+' 位，建立後 2 週內須完成強力跟進，避免滑入滯留清單。',
+        '• '+hl('近4週帳齡未評級','var(--teal)')+'：共 '+ageTotalAll+' 位進行中客戶中，'+hl(ageTotalNoLv+' 位（'+ageNoLvPct+'%）尚未填寫熱度',ageNoLvPct>=50?'var(--red)':ageNoLvPct>=30?'var(--orange)':'var(--green)')+'，詳見下方帳齡跟進分析。'
       ]) +
       card('var(--accent2)','🚗 車款銷售結構',[
         '• '+hl(topCar[0],'var(--accent2)')+' 為本月主力，訂單 '+topCar[1]+' 張（'+(ord>0?Math.round(topCar[1]/ord*100):0)+'%）。',
@@ -1088,6 +1128,61 @@ async function loadInsightData() {
         '• BO '+bo+' 張下月上旬優先排交車；'+hl(lowStore[0]+'展示中心','var(--orange)')+'（轉交率 '+lowStore[3]+'%）需改善。',
         '• 本月訂單前三名：'+(top5.slice(0,3).map(function(e){return hl(e.name,'var(--accent)')+' ('+e.ord+'張)';}).join('、'))+'，持續維持動能。'+(zeroOrd.length>0?' 零訂單業務員（'+zeroOrd.map(function(e){return e.name;}).join('、')+'）需主管本週面談。':'')
       ]) +
+      '</div>' +
+      // ── 帳齡跟進分析（全寬卡）──
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;border-top:3px solid var(--teal);margin-bottom:16px">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">⏱️ 帳齡跟進分析（近4週進行中客戶）</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:14px">依業務員列出近4週各帳齡段客戶數，及尚未填寫熱度評級（H/A/B…）的比例。未評級視為尚未完成初步評估。</div>' +
+      // 週段彙總條
+      (function() {
+        var bands = [
+          {lbl:'第1週',tot:ageW1Tot,noLv:ageW1NoLv,col:'var(--teal)'},
+          {lbl:'第2週',tot:ageW2Tot,noLv:ageW2NoLv,col:'var(--accent)'},
+          {lbl:'第3週',tot:ageW3Tot,noLv:ageW3NoLv,col:'var(--yellow)'},
+          {lbl:'第4週',tot:ageW4Tot,noLv:ageW4NoLv,col:'var(--orange)'},
+        ];
+        var html = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">';
+        bands.forEach(function(b) {
+          var pct = b.tot > 0 ? Math.round(b.noLv/b.tot*100) : 0;
+          var c = pct>=50?'var(--red)':pct>=30?'var(--orange)':'var(--green)';
+          html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:110px;">' +
+            '<div style="font-size:11px;color:'+b.col+';font-weight:600;margin-bottom:4px">'+b.lbl+'</div>' +
+            '<div style="font-size:22px;font-weight:700;color:var(--text)">'+b.tot+'</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-top:2px">未評級 <strong style="color:'+c+'">'+b.noLv+'（'+pct+'%）</strong></div>' +
+            '</div>';
+        });
+        html += '</div>';
+        return html;
+      })() +
+      // 業務員明細表
+      '<div style="overflow-x:auto">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+      '<thead><tr style="background:var(--surface2)">' +
+      '<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.04em">業務員</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--teal);border-bottom:1px solid var(--border);font-weight:600">第1週</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--accent);border-bottom:1px solid var(--border);font-weight:600">第2週</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--yellow);border-bottom:1px solid var(--border);font-weight:600">第3週</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--orange);border-bottom:1px solid var(--border);font-weight:600">第4週</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600">合計</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--red);border-bottom:1px solid var(--border);font-weight:600">未評級（件 / %）</th>' +
+      '</tr></thead><tbody>' +
+      (consultantAgeList.length > 0
+        ? consultantAgeList.map(function(c) {
+            var pct = c.total > 0 ? Math.round(c.noLevel/c.total*100) : 0;
+            var ac  = pct>=50?'var(--red)':pct>=30?'var(--orange)':'var(--green)';
+            return '<tr style="border-bottom:1px solid var(--border)">' +
+              '<td style="padding:8px 12px;font-weight:500">'+c.name+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;color:var(--teal)">'+c.w1+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;color:var(--accent)">'+c.w2+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;color:var(--yellow)">'+c.w3+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;color:var(--orange)">'+c.w4+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;font-weight:700">'+c.total+'</td>' +
+              '<td style="padding:8px 12px;text-align:center;font-weight:700;color:'+ac+'">'+c.noLevel+' ('+pct+'%)</td>' +
+              '</tr>';
+          }).join('')
+        : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">近4週無進行中有望客戶資料</td></tr>') +
+      '</tbody></table></div>' +
+      '<div style="margin-top:10px;font-size:11px;color:var(--muted)">※ 業務員姓名目前依 Dataverse ownerid 對應，若顯示 ID 代表 cre39_users 尚無對應記錄。排序依「未評級件數」由高至低。</div>' +
       '</div>' +
       '<div style="background:#111827;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--muted)">※ 本分析依 Dataverse 即時資料自動生成，數字與近期數據頁一致。每次切換至此頁籤時自動更新。</div>';
 
