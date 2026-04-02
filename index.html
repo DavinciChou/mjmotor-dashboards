@@ -433,7 +433,7 @@ const REDIRECT_URI = location.origin + location.pathname;
 
 const msalConfig = {
   auth:  { clientId: CLIENT_ID, authority: 'https://login.microsoftonline.com/' + TENANT_ID, redirectUri: REDIRECT_URI },
-  cache: { cacheLocation: 'sessionStorage' }
+  cache: { cacheLocation: 'localStorage' }
 };
 const loginRequest = { scopes: [DV_BASE + '/user_impersonation', 'User.Read'] };
 
