@@ -1220,7 +1220,7 @@ async function loadFollowData() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const baseFilter = `cre39_isclosed eq false and cre39_createddate ge ${w4ago}${sf}`;
     const [recs, uData] = await Promise.all([
-      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate&$filter=${baseFilter}&$top=2000`, tok),
+      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate,cre39_id&$filter=${baseFilter}&$top=2000`, tok),
       dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`,{silent:true}).catch(()=>({value:[]}))
     ]);
     const userMap = {};
@@ -1235,7 +1235,7 @@ async function loadFollowData() {
       if (!bySales[name]) bySales[name]={name,custs:[],ok:0,warn:0,crit:0,never:0,newMonth:0};
       const days=getDays(r.cre39_lastactivitydate), cls=classify(days);
       const isNew = r.cre39_createddate >= monthStart;
-      bySales[name].custs.push({oppName:r.cre39_name||'—',level:r.cre39_accountlevel__c||'?',store:(r.cre39_store__c||'').replace('展示中心',''),days,cls,isNew,lastActivityDate:r.cre39_lastactivitydate,createdDate:r.cre39_createddate});
+      bySales[name].custs.push({oppName:r.cre39_name||'—',level:r.cre39_accountlevel__c||'?',store:(r.cre39_store__c||'').replace('展示中心',''),days,cls,isNew,lastActivityDate:r.cre39_lastactivitydate,createdDate:r.cre39_createddate,sfId:r.cre39_id||''});
       bySales[name][cls]++;
       if(isNew) bySales[name].newMonth++;
     });
@@ -1348,6 +1348,8 @@ function renderFollowDrawer(name,filter) {
     const lc=c.level==='H'?'var(--red)':c.level==='A'?'var(--orange)':c.level==='B'?'var(--green)':'var(--muted)';
     const dateStr=c.lastActivityDate?c.lastActivityDate.split('T')[0]:'—';
     const creStr=c.createdDate?c.createdDate.substring(2,10).replace(/-/g,'/'):'—';
+    const thId='th_'+c.sfId.replace(/[^A-Za-z0-9]/g,'_');
+    const taskBtn=c.sfId?`<button onclick="toggleTaskHistory(this,'${c.sfId}','${thId}')" style="font-size:11px;color:var(--teal);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;margin-top:6px">📋 聯繫記錄</button>`:'';
     return `<div style="background:#12151f;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid ${border}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-weight:600;font-size:13px">${c.oppName}${c.isNew?' <span style="font-size:10px;background:#1e3a5f44;color:#60a5fa;padding:1px 6px;border-radius:8px;font-weight:700">本月新增</span>':''}</span>
@@ -1358,6 +1360,8 @@ function renderFollowDrawer(name,filter) {
         <span style="color:${daysColor};font-weight:700">最後聯繫：${daysTxt}</span>
       </div>
       ${c.lastActivityDate?`<div style="font-size:11px;color:var(--muted)">SF 活動日：${dateStr}</div>`:''}
+      ${taskBtn}
+      <div id="${thId}" style="display:none;margin-top:8px;border-top:1px solid #1e2130;padding-top:8px"></div>
     </div>`;
   }).join('');
   document.getElementById('followDrawerInner').innerHTML=`
@@ -1374,7 +1378,7 @@ function renderFollowDrawer(name,filter) {
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">嚴重逾期優先顯示 ↓</div>
     ${custHtml||'<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">此條件下無客戶</div>'}
     <div style="margin-top:12px;padding:10px 12px;background:#1e293b;border-radius:8px;font-size:11px;color:var(--muted)">
-      ℹ️ 顯示 SF LastActivityDate。如需查看詳細記錄，請至 Salesforce 開啟該有望客戶。
+      ℹ️ 合規計算依 SF LastActivityDate。點擊「📋 聯繫記錄」查看 SF Task 詳細活動記錄。
     </div>`;
 }
 
@@ -1465,6 +1469,56 @@ async function loadHistoryData(force) {
   } catch(e) {
     document.getElementById('histError').style.display = 'block';
     document.getElementById('histError').textContent = '歷史資料載入失敗：' + e.message;
+  }
+}
+
+async function toggleTaskHistory(btn, sfId, thId) {
+  const el = document.getElementById(thId);
+  if (!el) return;
+  if (el.style.display !== 'none') {
+    el.style.display = 'none';
+    btn.textContent = '📋 聯繫記錄';
+    return;
+  }
+  el.style.display = 'block';
+  btn.textContent = '⏳ 載入中…';
+  try {
+    const tok = await getToken();
+    const data = await dvFetch(
+      `cre39_sf_tasks?$select=cre39_subject,cre39_activitydate,cre39_status,cre39_type,cre39_description` +
+      `&$filter=cre39_whatid eq '${sfId}' and cre39_isdeleted eq false` +
+      `&$orderby=cre39_activitydate desc&$top=15`,
+      tok
+    );
+    const tasks = data.value || [];
+    if (tasks.length === 0) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:6px 0;text-align:center">無 SF Task 聯繫記錄</div>';
+    } else {
+      const iconOf = s => {
+        const m = { '電訪':'📞','試駕完成':'🚗','試乘':'🚗','顧問聯繫':'💬','來店':'🏪','Email':'📧','電話':'📞' };
+        for (const k of Object.keys(m)) { if (s && s.includes(k)) return m[k]; }
+        return '📌';
+      };
+      el.innerHTML = tasks.map(t => {
+        const date = (t.cre39_activitydate || '').split('T')[0] || '—';
+        const subj = t.cre39_subject || '—';
+        const type = t.cre39_type || '';
+        const icon = iconOf(subj);
+        const desc = t.cre39_description
+          ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${t.cre39_description.substring(0,80)}${t.cre39_description.length>80?'…':''}</div>`
+          : '';
+        return `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #1e2130">
+          <div style="display:flex;gap:8px;align-items:baseline">
+            <span style="color:var(--muted);flex-shrink:0;width:72px">${date}</span>
+            <span>${icon} <span style="color:var(--teal);font-weight:600">${subj}</span>${type && type !== subj ? ` <span style="color:var(--muted);font-size:11px">${type}</span>` : ''}</span>
+          </div>${desc}
+        </div>`;
+      }).join('');
+    }
+    btn.textContent = '📋 收起記錄';
+  } catch (e) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--red)">載入失敗：${e.message}</div>`;
+    btn.textContent = '📋 聯繫記錄';
   }
 }
 
