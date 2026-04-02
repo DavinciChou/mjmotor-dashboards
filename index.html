@@ -1220,7 +1220,7 @@ async function loadFollowData() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const baseFilter = `cre39_isclosed eq false and cre39_createddate ge ${w4ago}${sf}`;
     const [recs, uData] = await Promise.all([
-      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate,cre39_id&$filter=${baseFilter}&$top=2000`, tok),
+      dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate,cre39_sfid&$filter=${baseFilter}&$top=2000`, tok),
       dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`,{silent:true}).catch(()=>({value:[]}))
     ]);
     const userMap = {};
@@ -1235,7 +1235,7 @@ async function loadFollowData() {
       if (!bySales[name]) bySales[name]={name,custs:[],ok:0,warn:0,crit:0,never:0,newMonth:0};
       const days=getDays(r.cre39_lastactivitydate), cls=classify(days);
       const isNew = r.cre39_createddate >= monthStart;
-      bySales[name].custs.push({oppName:r.cre39_name||'—',level:r.cre39_accountlevel__c||'?',store:(r.cre39_store__c||'').replace('展示中心',''),days,cls,isNew,lastActivityDate:r.cre39_lastactivitydate,createdDate:r.cre39_createddate,sfId:r.cre39_id||''});
+      bySales[name].custs.push({oppName:r.cre39_name||'—',level:r.cre39_accountlevel__c||'?',store:(r.cre39_store__c||'').replace('展示中心',''),days,cls,isNew,lastActivityDate:r.cre39_lastactivitydate,createdDate:r.cre39_createddate,sfId:r.cre39_sfid||''});
       bySales[name][cls]++;
       if(isNew) bySales[name].newMonth++;
     });
@@ -1485,7 +1485,7 @@ async function toggleTaskHistory(btn, sfId, thId) {
   try {
     const tok = await getToken();
     const data = await dvFetch(
-      `cre39_sf_tasks?$select=cre39_subject,cre39_activitydate,cre39_status,cre39_type,cre39_description` +
+      `cre39_sf_taskses?$select=cre39_subject,cre39_activitydate,cre39_status,cre39_type,cre39_description` +
       `&$filter=cre39_whatid eq '${sfId}' and cre39_isdeleted eq false` +
       `&$orderby=cre39_activitydate desc&$top=15`,
       tok
