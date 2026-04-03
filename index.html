@@ -595,6 +595,35 @@ function dvCount(filter) {
       return 0;
     });
 }
+
+// ── Global userMap cache (SF User ID → 中文姓名) ──
+// 整個 session 只抓一次，失敗最多重試 3 次，避免 MSAL token 刷新時暫時失效導致全部顯示 ID
+let _userMapCache = null;
+let _userMapPromise = null;
+async function getUserMap() {
+  if (_userMapCache && Object.keys(_userMapCache).length > 0) return _userMapCache;
+  if (_userMapPromise) return _userMapPromise;
+  _userMapPromise = (async () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const data = await dvFetch('cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300', {silent: true});
+        const map = {};
+        (data.value || []).forEach(u => {
+          if (u.cre39_externalprimarykey && u.cre39_name) map[u.cre39_externalprimarykey] = u.cre39_name;
+        });
+        if (Object.keys(map).length > 0) {
+          _userMapCache = map;
+          _userMapPromise = null;
+          return map;
+        }
+      } catch(e) { console.warn('[getUserMap] attempt', attempt, e.message); }
+      if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
+    }
+    _userMapPromise = null;
+    return _userMapCache || {};
+  })();
+  return _userMapPromise;
+}
 function showPermissionBanner(msg) {
   if (document.getElementById('permBanner')) return;
   const banner = document.createElement('div');
@@ -934,15 +963,13 @@ async function loadWeeklyChart(sf) {
 
 async function loadSalesperson(start, end, sf) {
   try {
-    const [oData, wData, hData, aData, uData] = await Promise.all([
+    const [oData, wData, hData, aData, userMap] = await Promise.all([
       dvFetch(`${ENTITY}?$filter=cre39_orderdate__c ge ${start} and cre39_orderdate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`),
       dvFetch(`${ENTITY}?$filter=cre39_dmsdeliverydate__c ge ${start} and cre39_dmsdeliverydate__c lt ${end}${sf}&$select=cre39_ownerid&$top=500`),
       dvFetch(`${ENTITY}?$filter=cre39_isclosed eq false and cre39_accountlevel__c eq 'H'${sf}&$select=cre39_ownerid&$top=200`),
       dvFetch(`${ENTITY}?$filter=cre39_isclosed eq false and cre39_accountlevel__c eq 'A'${sf}&$select=cre39_ownerid&$top=500`),
-      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`, {silent:true}).catch(() => ({value:[]})),
+      getUserMap(),
     ]);
-    const userMap = {};
-    (uData.value||[]).forEach(u => { if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name; });
     const by = {};
     const ensure = id => { if (!by[id]) by[id] = {ord:0,won:0,h:0,a:0,name:userMap[id]||id}; };
     (oData.value||[]).forEach(r => { const id=r.cre39_ownerid||'未知'; ensure(id); by[id].ord++; });
@@ -1013,7 +1040,7 @@ async function loadInsightData() {
       dvCount("cre39_orderdate__c ge "+start+" and cre39_orderdate__c lt "+end+" and cre39_accountlevel__c eq null"),
       dvFetch('cre39_sf_opportunities?$filter=cre39_orderdate__c ge '+start+' and cre39_orderdate__c lt '+end+sf+'&$select=cre39_ownerid,cre39_store__c&$top=1000'),
       dvFetch('cre39_sf_opportunities?$filter=cre39_dmsdeliverydate__c ge '+start+' and cre39_dmsdeliverydate__c lt '+end+sf+'&$select=cre39_ownerid&$top=1000'),
-      dvFetch('cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300', {silent:true}).catch(function(){return {value:[]};})
+      getUserMap()
     ]);
 
     // ── 帳齡跟進分析：近4週各週段未評級數 + 業務員明細 ──
@@ -1035,11 +1062,8 @@ async function loadInsightData() {
     const ageTotalAll  = ageW1Tot  + ageW2Tot  + ageW3Tot  + ageW4Tot;
     const ageNoLvPct   = ageTotalAll > 0 ? Math.round(ageTotalNoLv / ageTotalAll * 100) : 0;
 
-    // 建立 SF User ID → 姓名 對照表
-    const userMap = {};
-    (uData.value||[]).forEach(function(u) {
-      if (u.cre39_externalprimarykey && u.cre39_name) userMap[u.cre39_externalprimarykey] = u.cre39_name;
-    });
+    // 建立 SF User ID → 姓名 對照表（由全域快取 getUserMap() 提供）
+    const userMap = uData;
 
     // ── 業務員帳齡分析（近4週進行中，按 ownerid 分組）──
     const nowTs = Date.now();
@@ -1219,12 +1243,10 @@ async function loadFollowData() {
     const w4ago      = new Date(now - 28*86400000).toISOString().split('T')[0];
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const baseFilter = `cre39_isclosed eq false and cre39_createddate ge ${w4ago}${sf}`;
-    const [recs, uData] = await Promise.all([
+    const [recs, userMap] = await Promise.all([
       dvFetch(`cre39_sf_opportunities?$select=cre39_ownerid,cre39_lastactivitydate,cre39_accountlevel__c,cre39_store__c,cre39_name,cre39_createddate,cre39_sfid&$filter=${baseFilter}&$top=2000`, tok),
-      dvFetch(`cre39_users?$select=cre39_name,cre39_externalprimarykey&$top=300`,{silent:true}).catch(()=>({value:[]}))
+      getUserMap()
     ]);
-    const userMap = {};
-    (uData.value||[]).forEach(u=>{ if(u.cre39_externalprimarykey&&u.cre39_name) userMap[u.cre39_externalprimarykey]=u.cre39_name; });
     const rows = recs.value||[];
     const todayTs = now.getTime();
     const getDays = lad => lad ? Math.floor((todayTs-new Date(lad).getTime())/86400000) : null;
